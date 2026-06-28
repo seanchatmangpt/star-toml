@@ -436,7 +436,7 @@ fn test_witness_is_deterministic() {
         .load_admitted::<Cfg>()
         .unwrap();
 
-    assert_eq!(r1.witness.hash, r2.witness.hash, "witness must be deterministic");
+    assert_eq!(r1.witness().hash(), r2.witness().hash(), "witness must be deterministic");
 }
 
 #[test]
@@ -457,7 +457,7 @@ fn test_witness_changes_on_source_change() {
         .load_admitted::<Cfg>()
         .unwrap();
 
-    assert_ne!(r1.witness.hash, r2.witness.hash, "witness must change when source changes");
+    assert_ne!(r1.witness().hash(), r2.witness().hash(), "witness must change when source changes");
 }
 
 // ---------------------------------------------------------------------------
@@ -547,8 +547,8 @@ fn test_load_admitted_succeeds() {
 
     assert_eq!(admitted.name, "admitted");
     assert_eq!(admitted.port, 8080);
-    assert!(!admitted.witness.hash.is_empty());
-    assert_eq!(admitted.source_report.entries.len(), 1);
+    assert!(!admitted.witness().hash().is_empty());
+    assert_eq!(admitted.source_report().entries.len(), 1);
 }
 
 #[test]
@@ -594,7 +594,7 @@ fn test_brce_metamorphic_canonical_stability() {
         .load_admitted::<Cfg>()
         .unwrap();
 
-    assert_eq!(r1.witness.hash, r2.witness.hash);
+    assert_eq!(r1.witness().hash(), r2.witness().hash());
 }
 
 #[test]
@@ -613,7 +613,7 @@ fn test_brce_idempotence_canonical() {
         .load_admitted::<Cfg>()
         .unwrap();
 
-    assert_eq!(a.witness.hash, b.witness.hash, "admission is idempotent");
+    assert_eq!(a.witness().hash(), b.witness().hash(), "admission is idempotent");
 }
 
 #[test]
@@ -675,4 +675,92 @@ fn test_brce_repair_hint_nonempty() {
     } else {
         panic!("Expected Error::Invalid");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Patch 3: unknown fields inside [[table]] arrays of tables
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, Serialize)]
+struct CfgWithServers {
+    servers: Vec<Server>,
+}
+
+impl Validate for CfgWithServers {
+    fn validate(&self, _v: &mut Validator) {}
+}
+
+impl ConfigLifecycle for CfgWithServers {}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Server {
+    name: String,
+    port: u16,
+}
+
+#[test]
+fn test_unknown_field_in_array_of_tables_rejected() {
+    // BRCE: falsification (Patch 3)
+    // Unknown fields inside [[server]] arrays must be caught by load_admitted().
+    let dir = TempDir::new().unwrap();
+    write_toml(
+        &dir,
+        "servers.toml",
+        "[[servers]]\nname = \"api\"\nport = 8080\nextra = \"must_fail\"\n",
+    );
+
+    let result = TrustedLoader::new()
+        .layer_file(dir.path().join("servers.toml"))
+        .load_admitted::<CfgWithServers>();
+
+    assert!(result.is_err(), "unknown field inside [[servers]] must be rejected by load_admitted");
+    if let Err(star_toml::Error::Invalid(errs)) = result {
+        let codes: Vec<_> = errs.errors().iter().map(|e| e.code()).collect();
+        assert!(codes.contains(&"unknown_field"), "expected unknown_field error code, got: {codes:?}");
+        // Each unknown-field error must carry a path that includes the array context
+        assert!(
+            errs.errors().iter().any(|e| !e.loc.is_root()),
+            "unknown-field errors must not be root Loc"
+        );
+    } else {
+        panic!("expected Error::Invalid with unknown_field");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Patch 4: Path policy hardening — additional bypass patterns
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_path_win_backslash_traversal_rejected() {
+    // foo\..\bar must be rejected on Unix via normalised separator check
+    let source = std::path::Path::new("/tmp/config.toml");
+    assert!(resolve_and_validate("foo\\..\\bar", source, &PathPolicy::BlockForbidden).is_err());
+    assert!(resolve_and_validate("foo\\..\\..\\etc\\passwd", source, &PathPolicy::BlockForbidden).is_err());
+}
+
+#[test]
+fn test_path_relative_traversal_rejected() {
+    let source = std::path::Path::new("/home/user/project/config.toml");
+    assert!(resolve_and_validate("../secret", source, &PathPolicy::RelativeOnly).is_err());
+    assert!(resolve_and_validate("foo/../../secret", source, &PathPolicy::RelativeOnly).is_err());
+}
+
+#[test]
+fn test_path_absolute_rejected_under_relative_only() {
+    let source = std::path::Path::new("/home/user/project/config.toml");
+    assert!(resolve_and_validate("/etc/passwd", source, &PathPolicy::RelativeOnly).is_err());
+}
+
+#[test]
+fn test_path_witness_has_rejection_code() {
+    // PathWitness must include rejection_code when a path is rejected via check_path_safe
+    let mut v = star_toml::Validator::new();
+    let source = std::path::Path::new("/tmp/config.toml");
+    v.set_source_path(source.to_path_buf());
+    v.check_path_safe("data_file", "../secret", source, PathPolicy::RelativeOnly);
+    assert!(!v.path_witnesses.is_empty());
+    let w = &v.path_witnesses[0];
+    assert!(!w.accepted);
+    assert!(w.rejection_code.is_some(), "PathWitness must carry rejection_code on failure");
 }

@@ -432,7 +432,6 @@ pub use loader::{
 pub use path::{resolve_and_validate, PathPolicy, PathWitness};
 pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
 pub use ocel::export_events_to_ocel;
-// Note: export_events_to_ocel is a no-op stub unless the `wasm4pm-compat` feature is enabled.
 pub use reports::{
     blake3_hex, CoercedType, EnvOverrideEntry, EnvOverrideReport, LayerEntry, LayerReport,
     SourceEntry, SourceKind, SourceReport,

@@ -1,0 +1,3 @@
+name = "bad-service"
+port = 8080
+extra_field = "must_fail"

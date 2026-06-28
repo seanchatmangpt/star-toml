@@ -1,0 +1,9 @@
+name = "example-service"
+port = 8080
+profile = "base"
+
+[logging]
+level = "info"
+
+[paths]
+data_dir = "data"

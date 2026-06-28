@@ -1,6 +1,5 @@
 //! Test suite for validating the wasm4pm-compat OCEL export mapping and adapter integration.
-//! Requires the `wasm4pm-compat` feature: `cargo test --features wasm4pm-compat`.
-#![cfg(feature = "wasm4pm-compat")]
+//! wasm4pm-compat is a required dependency; no feature flag is needed.
 
 use star_toml::events::{AdmissionEvent, ConfigEventKind};
 use star_toml::ocel::export_events_to_ocel;

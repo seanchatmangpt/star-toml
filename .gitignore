@@ -1,0 +1,8 @@
+/target/
+**/target/
+.agents/
+.DS_Store
+*.tmp
+*.bak
+Cargo.lock
+VERIFIER_REPORT.md

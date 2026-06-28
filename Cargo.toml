@@ -11,7 +11,7 @@ homepage = "https://github.com/seanchatmangpt/star-toml"
 readme = "README.md"
 keywords = ["config", "toml", "layered", "validation"]
 categories = ["development-tools", "config"]
-exclude = [".agents/", "PROJECT.md", "TEST_INFRA.md", "TEST_READY.md", "mcp_server.py"]
+exclude = [".agents/", "PROJECT.md", "TEST_INFRA.md", "TEST_READY.md", "mcp_server.py", "STAR_TOML_V26_6_28_ADMISSION_RECEIPT.md", "docs/", ".gitignore"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -19,7 +19,7 @@ toml = { version = "1.1.0", features = ["preserve_order"] }
 thiserror = "2.0"
 star-toml-derive = { version = "26.6.28", path = "star-toml-derive" }
 blake3 = "1"
-wasm4pm-compat = { version = "26.6", optional = true }
+wasm4pm-compat = "26.6"
 
 [dev-dependencies]
 tempfile = "3"
@@ -46,7 +46,6 @@ path = "src/bin/verifier_report.rs"
 
 [features]
 e2e_tests = []
-wasm4pm-compat = ["dep:wasm4pm-compat"]
 
 [profile.release]
 lto = true
@@ -59,4 +58,3 @@ members = [
     ".",
     "star-toml-derive"
 ]
-

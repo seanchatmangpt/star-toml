@@ -1,0 +1,10 @@
+[[services]]
+name = "api"
+
+[[services.routes]]
+path = "/health"
+method = "GET"
+
+[[services.routes]]
+path = "/users"
+method = "POST"
