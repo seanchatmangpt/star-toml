@@ -1,0 +1,12 @@
+[package]
+name = "star-toml-derive"
+version = "26.6.27"
+edition = "2021"
+rust-version = "1.82"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0", features = ["full"] }
+quote = "1.0"

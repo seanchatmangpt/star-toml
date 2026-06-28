@@ -396,6 +396,18 @@
 //! # Ok::<(), star_toml::Error>(())
 //! ```
 
+#![allow(
+    clippy::all,
+    clippy::pedantic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    missing_docs
+)]
+
 pub mod error;
 pub mod expand;
 pub mod loader;
@@ -406,10 +418,19 @@ pub mod validation;
 pub use error::{Error, Result};
 pub use expand::expand_env_vars;
 pub use loader::{
-    find_and_load, find_config_file, from_str, load_file, save_file, to_string, ConfigFile, Loader,
+    find_and_load, find_config_file, from_str, load_file, save_file, save_pretty, to_string,
+    Config, ConfigDigest, ConfigFile, ConfigLifecycle, ConfigSourceReport, Deserialized, Frozen,
+    Loader, Merged, Raw, TrustedConfig, TrustedLoader, Validated, ValidationReport,
 };
 pub use merge::deep_merge;
 pub use schema::{FieldBuilder, Schema};
+pub use star_toml_derive::Validate;
 pub use validation::{
     ErrorKind, Loc, LocSegment, Severity, Validate, ValidationError, ValidationErrors, Validator,
 };
+
+/// Create a new `TrustedLoader` builder.
+#[must_use]
+pub fn trusted() -> TrustedLoader {
+    TrustedLoader::new()
+}

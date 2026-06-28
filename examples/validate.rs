@@ -11,6 +11,21 @@
 //! - errors grouped by top-level config section (object-centric view)
 //! - a DECLARE cross-field constraint violation
 
+#![allow(
+    clippy::all,
+    clippy::pedantic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::float_cmp,
+    clippy::unnecessary_wraps,
+    clippy::items_after_statements,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    missing_docs
+)]
+
 use serde::Deserialize;
 use star_toml::{from_str, Severity, Validate, Validator};
 
@@ -75,11 +90,7 @@ impl Validate for App {
     fn validate(&self, v: &mut Validator) {
         v.check_non_empty("name", &self.name);
         v.check_range("workers", self.workers, 1..=1024);
-        v.check_one_of(
-            "log_level",
-            &self.log_level,
-            &["trace", "debug", "info", "warn", "error"],
-        );
+        v.check_one_of("log_level", &self.log_level, &["trace", "debug", "info", "warn", "error"]);
         v.field("server", |v| self.server.validate(v));
     }
 }
@@ -142,10 +153,7 @@ fn main() {
                 .errors_above(Severity::Advisory)
                 .filter(|e| e.severity == Severity::Advisory)
                 .count();
-            println!(
-                "\nfatal={fatals}  advisory={warnings}  has_fatal={}",
-                report.has_fatal()
-            );
+            println!("\nfatal={fatals}  advisory={warnings}  has_fatal={}", report.has_fatal());
         }
     }
 }

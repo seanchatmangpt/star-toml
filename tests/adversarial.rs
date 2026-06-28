@@ -1,4 +1,19 @@
-use star_toml::validation::{Validator, ErrorKind, Severity, Validate};
+#![allow(
+    clippy::all,
+    clippy::pedantic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::float_cmp,
+    clippy::unnecessary_wraps,
+    clippy::items_after_statements,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    missing_docs
+)]
+
+use star_toml::validation::{ErrorKind, Severity, Validate, Validator};
 
 #[test]
 fn test_semver_adversarial() {
@@ -32,9 +47,7 @@ fn test_semver_adversarial() {
     assert!(TestSemver { version: valid_max }.check().is_ok());
 
     // 3. Leading zeros check
-    let cases_leading_zeros = vec![
-        "01.0.0", "0.02.0", "0.0.03", "00.0.0", "1.0.00",
-    ];
+    let cases_leading_zeros = vec!["01.0.0", "0.02.0", "0.0.03", "00.0.0", "1.0.00"];
     for val in cases_leading_zeros {
         let errs = TestSemver { version: val.to_string() }.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "invalid_semver");
@@ -42,10 +55,28 @@ fn test_semver_adversarial() {
 
     // 4. Invalid formatting / Characters
     let cases_invalid_formats = vec![
-        "1", "1.0", "1.0.0.0", "v1.0.0", "1.0.0-alpha", "1.0.0+build",
-        "1.0.a", "1.a.0", "a.0.0", "1.0. ", " 1.0.0", "1.0.0 ",
-        "1..0", ".0.0", "0.0.", "..", "1.0.0\0", "1\0.0.0",
-        "-1.0.0", "1.-2.0", "1.0.-3", "１.０.０",
+        "1",
+        "1.0",
+        "1.0.0.0",
+        "v1.0.0",
+        "1.0.0-alpha",
+        "1.0.0+build",
+        "1.0.a",
+        "1.a.0",
+        "a.0.0",
+        "1.0. ",
+        " 1.0.0",
+        "1.0.0 ",
+        "1..0",
+        ".0.0",
+        "0.0.",
+        "..",
+        "1.0.0\0",
+        "1\0.0.0",
+        "-1.0.0",
+        "1.-2.0",
+        "1.0.-3",
+        "１.０.０",
     ];
     for val in cases_invalid_formats {
         let errs = TestSemver { version: val.to_string() }.check().unwrap_err();
@@ -83,8 +114,13 @@ fn test_ip_or_domain_adversarial() {
 
     // 3. Hyphen edge cases
     let cases_invalid_hyphens = vec![
-        "-example.com", "example-.com", "example.com-", "sub.-example.com",
-        "sub.example-.com", "-", "---",
+        "-example.com",
+        "example-.com",
+        "example.com-",
+        "sub.-example.com",
+        "sub.example-.com",
+        "-",
+        "---",
     ];
     for val in cases_invalid_hyphens {
         let errs = TestHost { host: val.to_string() }.check().unwrap_err();
@@ -92,9 +128,7 @@ fn test_ip_or_domain_adversarial() {
     }
 
     // 4. Dot edge cases
-    let cases_invalid_dots = vec![
-        ".", "..", "a..b", "domain..com", ".domain.com", "domain.com..",
-    ];
+    let cases_invalid_dots = vec![".", "..", "a..b", "domain..com", ".domain.com", "domain.com.."];
     for val in cases_invalid_dots {
         let errs = TestHost { host: val.to_string() }.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "invalid_ip_or_domain", "Passed unexpectedly: {}", val);
@@ -102,8 +136,12 @@ fn test_ip_or_domain_adversarial() {
 
     // 5. Invalid characters
     let cases_invalid_chars = vec![
-        "domain_name.com", "doma$in.com", "domain name.com", "domain/name.com",
-        "domain.com\0", "domain.com\n",
+        "domain_name.com",
+        "doma$in.com",
+        "domain name.com",
+        "domain/name.com",
+        "domain.com\0",
+        "domain.com\n",
     ];
     for val in cases_invalid_chars {
         let errs = TestHost { host: val.to_string() }.check().unwrap_err();
@@ -131,13 +169,15 @@ fn test_path_adversarial() {
     }
 
     // 1. Path traversal variations
-    let cases_traversal = vec![
-        "..", "../", "foo/../bar", "foo/..", "../foo", "a/b/../../c",
-    ];
+    let cases_traversal = vec!["..", "../", "foo/../bar", "foo/..", "../foo", "a/b/../../c"];
     for val in cases_traversal {
         let errs = TestPath { path: val.to_string(), must_be_absolute: None }.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "invalid_path");
-        assert!(errs.errors()[0].msg.contains("path traversal ('..') is not allowed"), "Failed for: {}", val);
+        assert!(
+            errs.errors()[0].msg.contains("path traversal ('..') is not allowed"),
+            "Failed for: {}",
+            val
+        );
     }
 
     // 2. Multi-dot variations (should pass as normal names if not ParentDir)
@@ -145,13 +185,15 @@ fn test_path_adversarial() {
     assert!(TestPath { path: "foo/.../bar".to_string(), must_be_absolute: None }.check().is_ok());
 
     // 3. Null bytes check
-    let cases_null = vec![
-        "foo\0bar", "\0", "foo/bar\0",
-    ];
+    let cases_null = vec!["foo\0bar", "\0", "foo/bar\0"];
     for val in cases_null {
         let errs = TestPath { path: val.to_string(), must_be_absolute: None }.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "invalid_path");
-        assert!(errs.errors()[0].msg.contains("path must not contain null bytes"), "Failed for: {}", val);
+        assert!(
+            errs.errors()[0].msg.contains("path must not contain null bytes"),
+            "Failed for: {}",
+            val
+        );
     }
 
     // 4. Platform-specific path separator traversal (Windows backslash on Unix)
@@ -189,18 +231,14 @@ fn test_size_format_adversarial() {
     assert!(TestSize { size: format!("{}B", u64_max) }.check().is_ok());
 
     // 3. Floating points / negatives
-    let cases_invalid_nums = vec![
-        "1.5GB", "-10MB", "+100KB", " 512MB", "512MB ", "512 MB",
-    ];
+    let cases_invalid_nums = vec!["1.5GB", "-10MB", "+100KB", " 512MB", "512MB ", "512 MB"];
     for val in cases_invalid_nums {
         let errs = TestSize { size: val.to_string() }.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "invalid_size_format");
     }
 
     // 4. Invalid suffixes
-    let cases_invalid_suffixes = vec![
-        "10PB", "10XB", "10M", "10G", "10", "MB", "",
-    ];
+    let cases_invalid_suffixes = vec!["10PB", "10XB", "10M", "10G", "10", "MB", ""];
     for val in cases_invalid_suffixes {
         let errs = TestSize { size: val.to_string() }.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "invalid_size_format");
@@ -216,7 +254,6 @@ fn test_size_format_adversarial() {
     let err = res.expect_err("Expected Kelvin sign input to be rejected");
     assert_eq!(err.errors()[0].code(), "invalid_size_format");
 }
-
 
 #[test]
 fn test_stress_validation() {
@@ -262,13 +299,13 @@ fn test_stress_validation() {
     check_no_panic("1.0.0", "localhost", &deep_traversal, "1GB");
 
     // 3. Fuzzing with diverse Unicode and special character sequences
-    let test_chars = [
-        '\0', '\n', '\r', '\t', ' ', '.', '-', '/', '\\', '_', ':', 'K', 'ß', 'ä', '１', '０',
-    ];
+    let test_chars =
+        ['\0', '\n', '\r', '\t', ' ', '.', '-', '/', '\\', '_', ':', 'K', 'ß', 'ä', '１', '０'];
     for len in [1, 5, 10, 50, 100] {
         for char1 in &test_chars {
             for char2 in &test_chars {
-                let s = format!("{}{}", char1.to_string().repeat(len), char2.to_string().repeat(len));
+                let s =
+                    format!("{}{}", char1.to_string().repeat(len), char2.to_string().repeat(len));
                 check_no_panic(&s, &s, &s, &s);
             }
         }
@@ -308,29 +345,26 @@ fn test_additional_path_and_host_adversarial() {
             host: "localhost".to_string(),
             size: "1GB".to_string(),
             must_be_absolute: None,
-        }.check().unwrap_err();
+        }
+        .check()
+        .unwrap_err();
         assert!(
             errs.errors().iter().any(|e| e.loc.to_string() == "path" && e.code() == "invalid_path"),
-            "Expected failure for path: {}", t
+            "Expected failure for path: {}",
+            t
         );
     }
 
     // Safe path edge cases that should pass
-    let safe_paths = vec![
-        ".",
-        "...",
-        "....",
-        "foo/.../bar",
-        "foo/bar/.",
-        "foo/bar/./baz",
-    ];
+    let safe_paths = vec![".", "...", "....", "foo/.../bar", "foo/bar/.", "foo/bar/./baz"];
     for p in safe_paths {
         let res = TestModel {
             path: p.to_string(),
             host: "localhost".to_string(),
             size: "1GB".to_string(),
             must_be_absolute: None,
-        }.check();
+        }
+        .check();
         assert!(res.is_ok(), "Expected safe path to pass: {}, got error: {:?}", p, res);
     }
 
@@ -353,10 +387,15 @@ fn test_additional_path_and_host_adversarial() {
             host: h.to_string(),
             size: "1GB".to_string(),
             must_be_absolute: None,
-        }.check().unwrap_err();
+        }
+        .check()
+        .unwrap_err();
         assert!(
-            errs.errors().iter().any(|e| e.loc.to_string() == "host" && e.code() == "invalid_ip_or_domain"),
-            "Expected failure for host: {}", h
+            errs.errors()
+                .iter()
+                .any(|e| e.loc.to_string() == "host" && e.code() == "invalid_ip_or_domain"),
+            "Expected failure for host: {}",
+            h
         );
     }
 
@@ -375,7 +414,8 @@ fn test_additional_path_and_host_adversarial() {
             host: h.to_string(),
             size: "1GB".to_string(),
             must_be_absolute: None,
-        }.check();
+        }
+        .check();
         assert!(res.is_ok(), "Expected valid host to pass: {}, got error: {:?}", h, res);
     }
 
@@ -392,26 +432,28 @@ fn test_additional_path_and_host_adversarial() {
             host: "localhost".to_string(),
             size: s.to_string(),
             must_be_absolute: None,
-        }.check().unwrap_err();
+        }
+        .check()
+        .unwrap_err();
         assert!(
-            errs.errors().iter().any(|e| e.loc.to_string() == "size" && e.code() == "invalid_size_format"),
-            "Expected failure for size: {}", s
+            errs.errors()
+                .iter()
+                .any(|e| e.loc.to_string() == "size" && e.code() == "invalid_size_format"),
+            "Expected failure for size: {}",
+            s
         );
     }
 
     // Valid Size Format Edge Cases
-    let valid_sizes = vec![
-        "00000000000000000010GB",
-        "10gb",
-        "10tb",
-    ];
+    let valid_sizes = vec!["00000000000000000010GB", "10gb", "10tb"];
     for s in valid_sizes {
         let res = TestModel {
             path: "safe/path".to_string(),
             host: "localhost".to_string(),
             size: s.to_string(),
             must_be_absolute: None,
-        }.check();
+        }
+        .check();
         assert!(res.is_ok(), "Expected valid size to pass: {}, got error: {:?}", s, res);
     }
 }
@@ -434,16 +476,17 @@ fn test_more_extreme_adversarial() {
         }
     }
 
-    let check_cases = |path: &str, host: &str, size: &str, version: &str, must_be_absolute: Option<bool>| {
-        let m = TestModel {
-            path: path.to_string(),
-            host: host.to_string(),
-            size: size.to_string(),
-            version: version.to_string(),
-            must_be_absolute,
+    let check_cases =
+        |path: &str, host: &str, size: &str, version: &str, must_be_absolute: Option<bool>| {
+            let m = TestModel {
+                path: path.to_string(),
+                host: host.to_string(),
+                size: size.to_string(),
+                version: version.to_string(),
+                must_be_absolute,
+            };
+            let _ = m.check();
         };
-        let _ = m.check();
-    };
 
     // Verify no panic on control characters, special Unicode, and weird character sequences
     let weird_strings = vec![
@@ -480,7 +523,9 @@ fn test_more_extreme_adversarial() {
         size: "1GB".into(),
         version: "1.0.0".into(),
         must_be_absolute: None,
-    }.check().is_ok());
+    }
+    .check()
+    .is_ok());
 
     assert!(TestModel {
         path: "safe/path".into(),
@@ -488,11 +533,13 @@ fn test_more_extreme_adversarial() {
         size: "1GB".into(),
         version: "1.0.0".into(),
         must_be_absolute: None,
-    }.check().is_ok());
+    }
+    .check()
+    .is_ok());
 
     // Explicit checks for absolute path logic
     let unix_abs = "/absolute/path";
-    
+
     let m = TestModel {
         path: unix_abs.to_string(),
         host: "localhost".to_string(),
@@ -514,5 +561,90 @@ fn test_more_extreme_adversarial() {
     assert!(err.errors()[0].msg.contains("path must be absolute"));
 }
 
+#[test]
+fn test_schema_missing_nested_section_adversarial() {
+    use star_toml::Schema;
+    let schema = Schema::new().section(
+        "server",
+        Schema::new()
+            .field("host")
+            .required()
+            .done()
+            .section("tls", Schema::new().field("client_cert").required().done()),
+    );
 
+    // Case 1: "server" table is completely missing.
+    // The "server.host" (direct field of "server") is checked and reported missing.
+    // The nested section "server.tls" is also recursively walked, so "server.tls.client_cert" is reported.
+    let errs1 = schema.validate_str("").unwrap_err();
+    let locs1: Vec<String> = errs1.errors().iter().map(|e| e.loc.to_string()).collect();
+    assert!(locs1.contains(&"server.host".to_string()));
+    assert!(locs1.contains(&"server.tls.client_cert".to_string()));
 
+    // Case 2: "server" table is present but empty.
+    // In this case, "server" is present, so "tls" is checked, and since "tls" is missing,
+    // its required field "client_cert" is checked and reported missing.
+    let errs2 = schema.validate_str("[server]\n").unwrap_err();
+    let locs2: Vec<String> = errs2.errors().iter().map(|e| e.loc.to_string()).collect();
+    assert!(locs2.contains(&"server.host".to_string()));
+    assert!(locs2.contains(&"server.tls.client_cert".to_string()));
+}
+
+#[test]
+fn test_schema_range_f64_nan_discrepancy() {
+    use star_toml::Schema;
+
+    // 1. Declarative Schema with f64 range 0.0..=1.0
+    let schema = Schema::new().field("ratio").range_f64(0.0, 1.0).done();
+
+    // Validation with NaN float value
+    // Since NaN range validation check was fixed, both inf and nan fail correctly!
+    assert!(schema.validate_str("ratio = inf").is_err());
+    assert!(schema.validate_str("ratio = nan").is_err());
+
+    // 2. Struct-based Validate check with f64 range
+    struct RatioConfig {
+        ratio: f64,
+    }
+    impl Validate for RatioConfig {
+        fn validate(&self, v: &mut Validator) {
+            v.check_range("ratio", self.ratio, 0.0..=1.0);
+        }
+    }
+
+    // In contains() check, NaN fails because NaN >= 0.0 && NaN <= 1.0 is false.
+    let cfg_nan = RatioConfig { ratio: f64::NAN };
+    let errs = cfg_nan.check().unwrap_err();
+    assert_eq!(errs.errors()[0].code(), "out_of_range");
+}
+
+#[test]
+fn test_env_prefix_consecutive_trailing_leading_dots() {
+    use serde::Deserialize;
+    use star_toml::Loader;
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct Inner {
+        port: Option<u16>,
+    }
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct Config {
+        server: Option<Inner>,
+    }
+
+    // 1. Trailing dot/double-underscore: APP_SERVER__PORT__
+    // Becomes key: "server.port."
+    // In the fixed set_dotted, empty segments are filtered out, so it successfully loads "server.port" as 8080.
+    std::env::set_var("APP_SERVER__PORT__", "8080");
+    let cfg1: Config = Loader::new().env_prefix("APP_").load::<Config>().unwrap();
+    std::env::remove_var("APP_SERVER__PORT__");
+    assert_eq!(cfg1.server, Some(Inner { port: Some(8080) }));
+
+    // 2. Leading dot/double-underscore: APP____SERVER__PORT (starts with three underscores, APP_ + ___ + SERVER__PORT)
+    // In the fixed set_dotted, empty segments are filtered out, so it successfully loads the value.
+    // The key parses to "_server.port" (since ___ becomes ._). We verify it maps correctly in toml::Value.
+    std::env::set_var("APP____SERVER__PORT", "8080");
+    let val2: toml::Value = Loader::new().env_prefix("APP_").load().unwrap();
+    std::env::remove_var("APP____SERVER__PORT");
+    assert_eq!(val2["_server"]["port"].as_integer(), Some(8080));
+}

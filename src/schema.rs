@@ -66,8 +66,114 @@
 //! assert!(schema.validate_str(toml).is_ok());
 //! ```
 
-use crate::validation::{ErrorKind, Loc, LocSegment, Severity, ValidationError, ValidationErrors};
+#[macro_export]
+#[doc(hidden)]
+macro_rules! schema_key_to_str {
+    ($key:ident) => {
+        stringify!($key)
+    };
+    ($key:literal) => {
+        $key
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! schema_field_constraint {
+    ($fb:expr, non_empty) => {
+        $fb.non_empty()
+    };
+    ($fb:expr, required) => {
+        $fb.required()
+    };
+    ($fb:expr, range($lo:expr, $hi:expr)) => {
+        $fb.range_i64($lo, $hi)
+    };
+    ($fb:expr, range_f64($lo:expr, $hi:expr)) => {
+        $fb.range_f64($lo, $hi)
+    };
+    ($fb:expr, one_of($($allowed:expr),* $(,)?)) => {
+        $fb.one_of(&[$($allowed),*])
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! schema_field_constraints {
+    ($fb:expr, ) => {
+        $fb
+    };
+    ($fb:expr, $cname:ident ($($cargs:tt)*) , $($rest:tt)*) => {
+        {
+            let fb = $crate::schema_field_constraint!($fb, $cname ($($cargs)*));
+            $crate::schema_field_constraints!(fb, $($rest)*)
+        }
+    };
+    ($fb:expr, $cname:ident ($($cargs:tt)*)) => {
+        $crate::schema_field_constraint!($fb, $cname ($($cargs)*))
+    };
+    ($fb:expr, $cname:ident , $($rest:tt)*) => {
+        {
+            let fb = $crate::schema_field_constraint!($fb, $cname);
+            $crate::schema_field_constraints!(fb, $($rest)*)
+        }
+    };
+    ($fb:expr, $cname:ident) => {
+        $crate::schema_field_constraint!($fb, $cname)
+    };
+}
+
+/// Declarative schema builder macro.
+///
+/// Supports fields with constraints and nested sections.
+#[macro_export]
+macro_rules! schema {
+    // Nested sections: key: { ... }
+    ( @entry $s:ident, $key:tt, { $($nested:tt)* } ) => {
+        let key_str = $crate::schema_key_to_str!($key);
+        let nested_schema = $crate::schema! { $($nested)* };
+        $s = $s.section(key_str, nested_schema);
+    };
+
+    // Bracketed constraints: key: [required, range(1, 10)]
+    ( @entry $s:ident, $key:tt, [ $($constraints:tt)* ] ) => {
+        let key_str = $crate::schema_key_to_str!($key);
+        let fb = $s.field(key_str);
+        let fb = $crate::schema_field_constraints!(fb, $($constraints)*);
+        $s = fb.done();
+    };
+
+    // Single constraint with args: key: range(1, 10)
+    ( @entry $s:ident, $key:tt, $cname:ident ($($cargs:tt)*) ) => {
+        let key_str = $crate::schema_key_to_str!($key);
+        let fb = $s.field(key_str);
+        let fb = $crate::schema_field_constraint!(fb, $cname ($($cargs)*));
+        $s = fb.done();
+    };
+
+    // Single constraint without args: key: non_empty
+    ( @entry $s:ident, $key:tt, $cname:ident ) => {
+        let key_str = $crate::schema_key_to_str!($key);
+        let fb = $s.field(key_str);
+        let fb = $crate::schema_field_constraint!(fb, $cname);
+        $s = fb.done();
+    };
+
+    // Entry point: comma-separated list of entries
+    ( $($key:tt : $val:tt $(($($args:tt)*))? ),* $(,)? ) => {
+        {
+            let mut s = $crate::Schema::new();
+            $(
+                $crate::schema!(@entry s, $key, $val $(($($args)*))?);
+            )*
+            s
+        }
+    };
+}
+
 use toml::Value;
+
+use crate::validation::{ErrorKind, Loc, LocSegment, Severity, ValidationError, ValidationErrors};
 
 // ---------------------------------------------------------------------------
 // Constraint — one atomic rule on a TOML value
@@ -76,39 +182,25 @@ use toml::Value;
 #[derive(Debug, Clone)]
 enum Constraint {
     NonEmpty,
-    RangeI64 {
-        lo: i64,
-        hi: i64,
-    },
-    RangeF64 {
-        lo: f64,
-        hi: f64,
-    },
-    OneOf {
-        allowed: Vec<String>,
-    },
+    RangeI64 { lo: i64, hi: i64 },
+    RangeF64 { lo: f64, hi: f64 },
+    OneOf { allowed: Vec<String> },
     Required,
-    Predicate {
-        code: &'static str,
-        msg: String,
-        test: fn(&Value) -> bool,
-    },
+    Predicate { code: &'static str, msg: String, test: fn(&Value) -> bool },
 }
 
 impl Constraint {
     fn check(
-        &self, field: &str, value: Option<&Value>, checks_run: &mut usize,
+        &self,
+        field: &str,
+        value: Option<&Value>,
+        checks_run: &mut usize,
     ) -> Option<ValidationError> {
         *checks_run += 1;
         match self {
             Self::Required => {
                 if value.is_none() {
-                    return Some(make_err(
-                        field,
-                        ErrorKind::Missing,
-                        None,
-                        "field is required",
-                    ));
+                    return Some(make_err(field, ErrorKind::Missing, None, "field is required"));
                 }
                 None
             }
@@ -142,7 +234,7 @@ impl Constraint {
             }
             Self::RangeF64 { lo, hi } => {
                 let n = value.and_then(Value::as_float).unwrap_or(0.0);
-                if n < *lo || n > *hi {
+                if n.is_nan() || n < *lo || n > *hi {
                     let msg = format!("input must be in range {lo}..={hi}");
                     return Some(make_err(
                         field,
@@ -162,9 +254,7 @@ impl Constraint {
                     let msg = format!("must be one of: {}", allowed.join(", "));
                     return Some(make_err(
                         field,
-                        ErrorKind::NotOneOf {
-                            allowed: allowed.clone(),
-                        },
+                        ErrorKind::NotOneOf { allowed: allowed.clone() },
                         Some(s.to_string()),
                         msg,
                     ));
@@ -173,12 +263,7 @@ impl Constraint {
             }
             Self::Predicate { code, msg, test } => {
                 if !test(value.unwrap_or(&Value::Boolean(false))) {
-                    return Some(make_err(
-                        field,
-                        ErrorKind::Predicate { code },
-                        None,
-                        msg.clone(),
-                    ));
+                    return Some(make_err(field, ErrorKind::Predicate { code }, None, msg.clone()));
                 }
                 None
             }
@@ -187,7 +272,10 @@ impl Constraint {
 }
 
 fn make_err(
-    field: &str, kind: ErrorKind, input: Option<String>, msg: impl Into<String>,
+    field: &str,
+    kind: ErrorKind,
+    input: Option<String>,
+    msg: impl Into<String>,
 ) -> ValidationError {
     ValidationError {
         loc: Loc(vec![LocSegment::Key(field.to_string())]),
@@ -240,13 +328,12 @@ impl<'a> FieldBuilder<'a> {
 
     /// Fail with `code` when `test(value)` returns false.
     pub fn predicate(
-        self, code: &'static str, msg: impl Into<String>, test: fn(&Value) -> bool,
+        self,
+        code: &'static str,
+        msg: impl Into<String>,
+        test: fn(&Value) -> bool,
     ) -> Self {
-        self.add(Constraint::Predicate {
-            code,
-            msg: msg.into(),
-            test,
-        })
+        self.add(Constraint::Predicate { code, msg: msg.into(), test })
     }
 
     fn add(self, c: Constraint) -> Self {
@@ -260,10 +347,7 @@ impl<'a> FieldBuilder<'a> {
 
     /// Finish field configuration and return to the parent [`Schema`].
     pub fn done(self) -> Schema {
-        Schema {
-            fields: self.schema.fields.clone(),
-            sections: self.schema.sections.clone(),
-        }
+        Schema { fields: self.schema.fields.clone(), sections: self.schema.sections.clone() }
     }
 }
 
@@ -309,10 +393,7 @@ impl Schema {
     ///
     /// Returns a [`FieldBuilder`]; call `.done()` to return to the schema.
     pub fn field(&mut self, name: &str) -> FieldBuilder<'_> {
-        FieldBuilder {
-            schema: self,
-            name: name.to_string(),
-        }
+        FieldBuilder { schema: self, name: name.to_string() }
     }
 
     /// Add a nested sub-schema for table key `name`.
@@ -347,11 +428,7 @@ impl Schema {
         if errors.is_empty() {
             Ok(())
         } else {
-            Err(ValidationErrors {
-                errors,
-                title: None,
-                checks_run,
-            })
+            Err(ValidationErrors { errors, title: None, checks_run })
         }
     }
 
@@ -367,9 +444,7 @@ impl Schema {
             Err(e) => {
                 let err = ValidationError {
                     loc: Loc::default(),
-                    kind: ErrorKind::Predicate {
-                        code: "parse_error",
-                    },
+                    kind: ErrorKind::Predicate { code: "parse_error" },
                     severity: Severity::Fatal,
                     input: None,
                     msg: e.to_string(),
@@ -390,18 +465,17 @@ impl Schema {
     #[must_use]
     pub fn constraint_count(&self) -> usize {
         let direct: usize = self.fields.iter().map(|(_, cs)| cs.len()).sum();
-        let nested: usize = self
-            .sections
-            .iter()
-            .map(|(_, s)| s.constraint_count())
-            .sum();
+        let nested: usize = self.sections.iter().map(|(_, s)| s.constraint_count()).sum();
         direct + nested
     }
 
     // -- internal ----------------------------------------------------------
 
     fn check_value(
-        &self, value: &Value, prefix: &[LocSegment], errors: &mut Vec<ValidationError>,
+        &self,
+        value: &Value,
+        prefix: &[LocSegment],
+        errors: &mut Vec<ValidationError>,
         checks_run: &mut usize,
     ) {
         for (name, constraints) in &self.fields {
@@ -435,7 +509,10 @@ impl Schema {
     }
 
     fn report_section_missing(
-        &self, _section: &str, prefix: &[LocSegment], errors: &mut Vec<ValidationError>,
+        &self,
+        _section: &str,
+        prefix: &[LocSegment],
+        errors: &mut Vec<ValidationError>,
         checks_run: &mut usize,
     ) {
         for (name, constraints) in &self.fields {
@@ -447,6 +524,11 @@ impl Schema {
                     errors.push(e);
                 }
             }
+        }
+        for (sub_section_name, sub_schema) in &self.sections {
+            let mut sub_prefix = prefix.to_vec();
+            sub_prefix.push(LocSegment::Key(sub_section_name.clone()));
+            sub_schema.report_section_missing(sub_section_name, &sub_prefix, errors, checks_run);
         }
     }
 }
@@ -460,13 +542,7 @@ mod tests {
     use super::*;
 
     fn server_schema() -> Schema {
-        Schema::new()
-            .field("host")
-            .non_empty()
-            .done()
-            .field("port")
-            .range_i64(1, 65535)
-            .done()
+        Schema::new().field("host").non_empty().done().field("port").range_i64(1, 65535).done()
     }
 
     fn app_schema() -> Schema {
@@ -536,19 +612,14 @@ port = 0
 
     #[test]
     fn parse_error_produces_fatal_error() {
-        let errs = Schema::new()
-            .validate_str("not valid toml :::")
-            .unwrap_err();
+        let errs = Schema::new().validate_str("not valid toml :::").unwrap_err();
         assert!(errs.errors()[0].is_fatal());
         assert_eq!(errs.errors()[0].code(), "parse_error");
     }
 
     #[test]
     fn one_of_constraint() {
-        let schema = Schema::new()
-            .field("level")
-            .one_of(&["info", "warn", "error"])
-            .done();
+        let schema = Schema::new().field("level").one_of(&["info", "warn", "error"]).done();
         assert!(schema.validate_str("level = \"info\"").is_ok());
         let errs = schema.validate_str("level = \"verbose\"").unwrap_err();
         assert_eq!(errs.errors()[0].code(), "not_one_of");

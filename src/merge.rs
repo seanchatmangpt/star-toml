@@ -61,12 +61,19 @@ pub fn deep_merge(base: &mut Value, overlay: Value) {
 /// This is used internally by [`crate::Loader::env_prefix`] to convert env-var overrides
 /// into TOML tree nodes.
 pub(crate) fn set_dotted(root: &mut Value, path: &str, value: Value) {
-    let mut parts = path.splitn(2, '.');
-    let head = match parts.next() {
-        Some(h) if !h.is_empty() => h,
-        _ => return,
-    };
-    let tail = parts.next();
+    let segments: Vec<&str> = path.split('.').filter(|s| !s.is_empty()).collect();
+    if segments.is_empty() {
+        return;
+    }
+    set_dotted_recursive(root, &segments, value);
+}
+
+fn set_dotted_recursive(root: &mut Value, segments: &[&str], value: Value) {
+    if segments.is_empty() {
+        return;
+    }
+    let head = segments[0];
+    let tail = &segments[1..];
 
     let tbl = match root {
         Value::Table(t) => t,
@@ -76,16 +83,12 @@ pub(crate) fn set_dotted(root: &mut Value, path: &str, value: Value) {
         }
     };
 
-    match tail {
-        None => {
-            tbl.insert(head.to_owned(), value);
-        }
-        Some(rest) => {
-            let entry = tbl
-                .entry(head.to_owned())
-                .or_insert_with(|| Value::Table(toml::map::Map::new()));
-            set_dotted(entry, rest, value);
-        }
+    if tail.is_empty() {
+        tbl.insert(head.to_owned(), value);
+    } else {
+        let entry =
+            tbl.entry(head.to_owned()).or_insert_with(|| Value::Table(toml::map::Map::new()));
+        set_dotted_recursive(entry, tail, value);
     }
 }
 
@@ -111,8 +114,9 @@ pub(crate) fn env_str_to_value(s: &str) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use toml::Value;
+
+    use super::*;
 
     fn parse(s: &str) -> Value {
         toml::from_str(s).unwrap()
@@ -161,6 +165,13 @@ mod tests {
         let mut root = Value::Table(toml::map::Map::new());
         set_dotted(&mut root, "a.b.c", Value::Integer(7));
         assert_eq!(root["a"]["b"]["c"].as_integer(), Some(7));
+    }
+
+    #[test]
+    fn set_dotted_handles_anomalous_dots() {
+        let mut root = Value::Table(toml::map::Map::new());
+        set_dotted(&mut root, ".a..b.c.", Value::Integer(42));
+        assert_eq!(root["a"]["b"]["c"].as_integer(), Some(42));
     }
 
     #[test]

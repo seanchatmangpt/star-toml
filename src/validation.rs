@@ -101,9 +101,7 @@
 //! assert!(!errs.errors()[0].repair_hint().is_empty());
 //! ```
 
-use std::collections::BTreeMap;
-use std::fmt;
-use std::ops::RangeInclusive;
+use std::{collections::BTreeMap, fmt, ops::RangeInclusive};
 
 // ---------------------------------------------------------------------------
 // Location — a path into the config tree
@@ -351,10 +349,7 @@ impl ValidationError {
             ErrorKind::TooShort { min, .. } => format!("provide at least {min} items/characters"),
             ErrorKind::TooLong { max, .. } => format!("use at most {max} items/characters"),
             ErrorKind::Inconsistent { related, .. } => {
-                format!(
-                    "ensure this field is consistent with: {}",
-                    related.join(", ")
-                )
+                format!("ensure this field is consistent with: {}", related.join(", "))
             }
             ErrorKind::Predicate { .. } => self.msg.clone(),
         }
@@ -470,11 +465,7 @@ impl ValidationErrors {
         if self.checks_run == 0 {
             return 1.0;
         }
-        let failed = self
-            .errors
-            .iter()
-            .filter(|e| e.severity >= Severity::Error)
-            .count();
+        let failed = self.errors.iter().filter(|e| e.severity >= Severity::Error).count();
         let passed = self.checks_run.saturating_sub(failed);
         passed as f64 / self.checks_run as f64
     }
@@ -488,11 +479,8 @@ impl ValidationErrors {
     /// Uses FNV-1a over the sorted `"loc:code"` pairs.
     #[must_use]
     pub fn variant_id(&self) -> u64 {
-        let mut pairs: Vec<String> = self
-            .errors
-            .iter()
-            .map(|e| format!("{}:{}", e.loc, e.code()))
-            .collect();
+        let mut pairs: Vec<String> =
+            self.errors.iter().map(|e| format!("{}:{}", e.loc, e.code())).collect();
         pairs.sort_unstable();
         fnv1a(pairs.join("|").as_bytes())
     }
@@ -511,13 +499,7 @@ impl ValidationErrors {
                 .loc
                 .segments()
                 .first()
-                .and_then(|s| {
-                    if let LocSegment::Key(k) = s {
-                        Some(k.as_str())
-                    } else {
-                        None
-                    }
-                })
+                .and_then(|s| if let LocSegment::Key(k) = s { Some(k.as_str()) } else { None })
                 .unwrap_or("(root)");
             map.entry(key.to_string()).or_default().push(err);
         }
@@ -562,9 +544,9 @@ impl std::error::Error for ValidationErrors {}
 #[derive(Debug, Default)]
 pub struct Validator {
     loc: Vec<LocSegment>,
-    errors: Vec<ValidationError>,
+    pub(crate) errors: Vec<ValidationError>,
     /// Total atomic checks performed (pass or fail), used to compute fitness.
-    checks_run: usize,
+    pub(crate) checks_run: usize,
     /// Severity to stamp on the next emitted error (reset after each `record`).
     pending_severity: Severity,
 }
@@ -625,7 +607,10 @@ impl Validator {
 
     /// Record an error at the current location, capturing an offending value.
     pub fn error_with(
-        &mut self, kind: ErrorKind, input: impl fmt::Display, msg: impl Into<String>,
+        &mut self,
+        kind: ErrorKind,
+        input: impl fmt::Display,
+        msg: impl Into<String>,
     ) {
         self.record(kind, Some(input.to_string()), msg.into());
     }
@@ -651,10 +636,7 @@ impl Validator {
             let msg = format!("input must be in range {lo}..={hi}");
             self.at(field, |v| {
                 v.error_with(
-                    ErrorKind::OutOfRange {
-                        lower: Some(lo),
-                        upper: Some(hi),
-                    },
+                    ErrorKind::OutOfRange { lower: Some(lo), upper: Some(hi) },
                     value,
                     msg,
                 );
@@ -669,13 +651,7 @@ impl Validator {
             let allowed_owned: Vec<String> = allowed.iter().map(|s| (*s).to_string()).collect();
             let msg = format!("must be one of: {}", allowed.join(", "));
             self.at(field, |v| {
-                v.error_with(
-                    ErrorKind::NotOneOf {
-                        allowed: allowed_owned,
-                    },
-                    value,
-                    msg,
-                );
+                v.error_with(ErrorKind::NotOneOf { allowed: allowed_owned }, value, msg);
             });
         }
     }
@@ -684,7 +660,11 @@ impl Validator {
     ///
     /// The escape hatch for arbitrary domain rules.
     pub fn check_predicate(
-        &mut self, field: &str, passed: bool, code: &'static str, msg: impl Into<String>,
+        &mut self,
+        field: &str,
+        passed: bool,
+        code: &'static str,
+        msg: impl Into<String>,
     ) {
         self.checks_run += 1;
         if !passed {
@@ -722,8 +702,12 @@ impl Validator {
     /// assert_eq!(errs.errors()[0].code(), "tls_cert_required");
     /// ```
     pub fn check_consistent(
-        &mut self, primary_field: &str, related_fields: &[&str], condition: bool,
-        code: &'static str, msg: impl Into<String>,
+        &mut self,
+        primary_field: &str,
+        related_fields: &[&str],
+        condition: bool,
+        code: &'static str,
+        msg: impl Into<String>,
     ) {
         self.checks_run += 1;
         if !condition {
@@ -780,11 +764,7 @@ impl Validator {
         if !is_ip && !is_hostname {
             let msg = format!("Invalid IP or domain hostname: '{}'", value);
             self.at(field, |v| {
-                v.error_with(
-                    ErrorKind::Predicate { code: "invalid_ip_or_domain" },
-                    value,
-                    msg,
-                );
+                v.error_with(ErrorKind::Predicate { code: "invalid_ip_or_domain" }, value, msg);
             });
         }
     }
@@ -792,7 +772,7 @@ impl Validator {
     /// Fail subfield `field` if `value` is not a safe path (e.g. non-empty, no traversal, no null bytes, and optionally absolute/relative).
     pub fn check_path(&mut self, field: &str, value: &str, must_be_absolute: Option<bool>) {
         self.checks_run += 1;
-        
+
         if value.is_empty() {
             self.at(field, |v| {
                 v.error_with(ErrorKind::Empty, "\"\"", "path must not be empty");
@@ -824,11 +804,7 @@ impl Validator {
         if !errors.is_empty() {
             let msg = format!("Invalid path '{}': {}", value, errors.join(", "));
             self.at(field, |v| {
-                v.error_with(
-                    ErrorKind::Predicate { code: "invalid_path" },
-                    value,
-                    msg,
-                );
+                v.error_with(ErrorKind::Predicate { code: "invalid_path" }, value, msg);
             });
         }
     }
@@ -841,23 +817,60 @@ impl Validator {
         let mut is_valid = false;
         for suffix in suffixes {
             if let Some(prefix) = val_upper.strip_suffix(suffix) {
-                if !prefix.is_empty() && prefix.chars().all(|c| c.is_ascii_digit()) && prefix.parse::<u64>().is_ok() {
+                if !prefix.is_empty()
+                    && prefix.chars().all(|c| c.is_ascii_digit())
+                    && prefix.parse::<u64>().is_ok()
+                {
                     is_valid = true;
                     break;
                 }
             }
         }
         if !is_valid {
-            let msg = format!(
-                "Invalid size format: '{}'. Expected format like '1GB', '512MB'",
-                value
-            );
+            let msg =
+                format!("Invalid size format: '{}'. Expected format like '1GB', '512MB'", value);
             self.at(field, |v| {
-                v.error_with(
-                    ErrorKind::Predicate { code: "invalid_size_format" },
-                    value,
-                    msg,
-                );
+                v.error_with(ErrorKind::Predicate { code: "invalid_size_format" }, value, msg);
+            });
+        }
+    }
+
+    /// Fail subfield `field` if the active profile matches the target profile and the condition is false.
+    pub fn check_profile(
+        &mut self,
+        field: &str,
+        active_profile: &str,
+        target_profile: &str,
+        condition: bool,
+        code: &'static str,
+        msg: impl Into<String>,
+    ) {
+        if active_profile == target_profile {
+            self.checks_run += 1;
+            if !condition {
+                let msg = msg.into();
+                self.at(field, |v| {
+                    v.error(ErrorKind::Predicate { code }, msg);
+                });
+            }
+        }
+    }
+
+    /// Fail subfield `field` if the policy closure evaluates to false.
+    pub fn check_policy<F>(
+        &mut self,
+        field: &str,
+        policy_closure: F,
+        code: &'static str,
+        msg: impl Into<String>,
+    ) where
+        F: FnOnce() -> bool,
+    {
+        self.checks_run += 1;
+        if !policy_closure() {
+            let msg = msg.into();
+            self.at(field, |v| {
+                v.error(ErrorKind::Predicate { code }, msg);
             });
         }
     }
@@ -871,11 +884,7 @@ impl Validator {
         if self.errors.is_empty() {
             Ok(())
         } else {
-            Err(ValidationErrors {
-                errors: self.errors,
-                title: None,
-                checks_run: self.checks_run,
-            })
+            Err(ValidationErrors { errors: self.errors, title: None, checks_run: self.checks_run })
         }
     }
 
@@ -973,12 +982,10 @@ pub trait Validate {
 // FNV-1a — for variant fingerprinting (no external deps)
 // ---------------------------------------------------------------------------
 
-fn fnv1a(data: &[u8]) -> u64 {
+pub(crate) fn fnv1a(data: &[u8]) -> u64 {
     const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
     const PRIME: u64 = 0x0000_0100_0000_01b3;
-    data.iter().fold(OFFSET, |hash, &byte| {
-        (hash ^ u64::from(byte)).wrapping_mul(PRIME)
-    })
+    data.iter().fold(OFFSET, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(PRIME))
 }
 
 // ---------------------------------------------------------------------------
@@ -1038,11 +1045,7 @@ mod tests {
             name: "demo".into(),
             workers: 8,
             log_level: "info".into(),
-            server: Server {
-                host: "localhost".into(),
-                port: 8080,
-                tls: None,
-            },
+            server: Server { host: "localhost".into(), port: 8080, tls: None },
         }
     }
 
@@ -1059,11 +1062,7 @@ mod tests {
             name: String::new(),
             workers: 0,
             log_level: "verbose".into(),
-            server: Server {
-                host: String::new(),
-                port: 0,
-                tls: None,
-            },
+            server: Server { host: String::new(), port: 0, tls: None },
         };
         let errs = app.check().unwrap_err();
         assert_eq!(errs.len(), 5);
@@ -1075,10 +1074,7 @@ mod tests {
             server: Server {
                 host: "ok".into(),
                 port: 0,
-                tls: Some(Tls {
-                    cert_path: String::new(),
-                    key_path: "key.pem".into(),
-                }),
+                tls: Some(Tls { cert_path: String::new(), key_path: "key.pem".into() }),
             },
             ..valid_app()
         };
@@ -1090,10 +1086,7 @@ mod tests {
 
     #[test]
     fn error_codes_are_machine_matchable() {
-        let app = App {
-            log_level: "nope".into(),
-            ..valid_app()
-        };
+        let app = App { log_level: "nope".into(), ..valid_app() };
         let errs = app.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "not_one_of");
         match &errs.errors()[0].kind {
@@ -1104,20 +1097,14 @@ mod tests {
 
     #[test]
     fn captured_input_value_present() {
-        let app = App {
-            workers: 9999,
-            ..valid_app()
-        };
+        let app = App { workers: 9999, ..valid_app() };
         let errs = app.check().unwrap_err();
         assert_eq!(errs.errors()[0].input.as_deref(), Some("9999"));
     }
 
     #[test]
     fn report_has_title_and_is_pretty() {
-        let app = App {
-            name: String::new(),
-            ..valid_app()
-        };
+        let app = App { name: String::new(), ..valid_app() };
         let errs = app.check().unwrap_err();
         let report = errs.to_string();
         assert!(report.starts_with("1 validation error for App"));
@@ -1157,10 +1144,7 @@ mod tests {
 
     #[test]
     fn default_severity_is_error() {
-        let app = App {
-            name: String::new(),
-            ..valid_app()
-        };
+        let app = App { name: String::new(), ..valid_app() };
         let errs = app.check().unwrap_err();
         assert_eq!(errs.errors()[0].severity, Severity::Error);
     }
@@ -1177,11 +1161,7 @@ mod tests {
                 });
             }
         }
-        let errs = Cfg {
-            log_dir: String::new(),
-        }
-        .check()
-        .unwrap_err();
+        let errs = Cfg { log_dir: String::new() }.check().unwrap_err();
         assert_eq!(errs.errors()[0].severity, Severity::Warning);
         assert!(!errs.has_fatal());
     }
@@ -1240,11 +1220,7 @@ mod tests {
             name: String::new(),
             workers: 0,
             log_level: "verbose".into(),
-            server: Server {
-                host: String::new(),
-                port: 0,
-                tls: None,
-            },
+            server: Server { host: String::new(), port: 0, tls: None },
         };
         let errs = app.check().unwrap_err();
         assert_eq!(errs.fitness(), 0.0);
@@ -1254,30 +1230,21 @@ mod tests {
 
     #[test]
     fn repair_hint_for_empty() {
-        let app = App {
-            name: String::new(),
-            ..valid_app()
-        };
+        let app = App { name: String::new(), ..valid_app() };
         let errs = app.check().unwrap_err();
         assert_eq!(errs.errors()[0].repair_hint(), "provide a non-empty value");
     }
 
     #[test]
     fn repair_hint_for_out_of_range() {
-        let app = App {
-            workers: 9999,
-            ..valid_app()
-        };
+        let app = App { workers: 9999, ..valid_app() };
         let errs = app.check().unwrap_err();
         assert!(errs.errors()[0].repair_hint().contains("1..=1024"));
     }
 
     #[test]
     fn repair_hint_for_not_one_of() {
-        let app = App {
-            log_level: "nope".into(),
-            ..valid_app()
-        };
+        let app = App { log_level: "nope".into(), ..valid_app() };
         let errs = app.check().unwrap_err();
         let hint = errs.errors()[0].repair_hint();
         assert!(hint.contains("trace"));
@@ -1288,34 +1255,16 @@ mod tests {
 
     #[test]
     fn same_error_pattern_same_variant_id() {
-        let app1 = App {
-            name: String::new(),
-            ..valid_app()
-        };
-        let app2 = App {
-            name: String::new(),
-            ..valid_app()
-        };
-        assert_eq!(
-            app1.check().unwrap_err().variant_id(),
-            app2.check().unwrap_err().variant_id()
-        );
+        let app1 = App { name: String::new(), ..valid_app() };
+        let app2 = App { name: String::new(), ..valid_app() };
+        assert_eq!(app1.check().unwrap_err().variant_id(), app2.check().unwrap_err().variant_id());
     }
 
     #[test]
     fn different_error_pattern_different_variant_id() {
-        let app1 = App {
-            name: String::new(),
-            ..valid_app()
-        };
-        let app2 = App {
-            workers: 9999,
-            ..valid_app()
-        };
-        assert_ne!(
-            app1.check().unwrap_err().variant_id(),
-            app2.check().unwrap_err().variant_id()
-        );
+        let app1 = App { name: String::new(), ..valid_app() };
+        let app2 = App { workers: 9999, ..valid_app() };
+        assert_ne!(app1.check().unwrap_err().variant_id(), app2.check().unwrap_err().variant_id());
     }
 
     // -- Van der Aalst: object-centric grouping ----------------------------
@@ -1325,11 +1274,7 @@ mod tests {
         let app = App {
             name: String::new(),
             workers: 0,
-            server: Server {
-                host: String::new(),
-                port: 0,
-                tls: None,
-            },
+            server: Server { host: String::new(), port: 0, tls: None },
             ..valid_app()
         };
         let errs = app.check().unwrap_err();
@@ -1360,10 +1305,7 @@ mod tests {
                 );
             }
         }
-        let bad = Tls2 {
-            enabled: true,
-            cert_path: String::new(),
-        };
+        let bad = Tls2 { enabled: true, cert_path: String::new() };
         let errs = bad.check().unwrap_err();
         assert_eq!(errs.errors()[0].code(), "tls_cert_required");
         assert_eq!(errs.errors()[0].loc.to_string(), "cert_path");
@@ -1392,12 +1334,7 @@ mod tests {
                 );
             }
         }
-        assert!(Tls2 {
-            enabled: true,
-            cert_path: "/etc/cert.pem".into()
-        }
-        .check()
-        .is_ok());
+        assert!(Tls2 { enabled: true, cert_path: "/etc/cert.pem".into() }.check().is_ok());
     }
 
     #[test]
@@ -1502,30 +1439,33 @@ mod tests {
         assert!(errs.errors()[0].msg.contains("path must not contain null bytes"));
 
         // 3. Path traversal check
-        let errs = PathVal { path: "foo/../bar".into(), must_be_absolute: None }.check().unwrap_err();
+        let errs =
+            PathVal { path: "foo/../bar".into(), must_be_absolute: None }.check().unwrap_err();
         assert_eq!(errs.len(), 1);
         assert_eq!(errs.errors()[0].code(), "invalid_path");
         assert!(errs.errors()[0].msg.contains("path traversal ('..') is not allowed"));
 
         // 4. Absolute check
-        let errs = PathVal { path: "relative/path".into(), must_be_absolute: Some(true) }.check().unwrap_err();
+        let errs = PathVal { path: "relative/path".into(), must_be_absolute: Some(true) }
+            .check()
+            .unwrap_err();
         assert_eq!(errs.len(), 1);
         assert_eq!(errs.errors()[0].code(), "invalid_path");
         assert!(errs.errors()[0].msg.contains("path must be absolute"));
 
         // 5. Relative check
-        let abs_path = std::env::current_dir()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-        let errs = PathVal { path: abs_path.clone(), must_be_absolute: Some(false) }.check().unwrap_err();
+        let abs_path = std::env::current_dir().unwrap().to_string_lossy().to_string();
+        let errs =
+            PathVal { path: abs_path.clone(), must_be_absolute: Some(false) }.check().unwrap_err();
         assert_eq!(errs.len(), 1);
         assert_eq!(errs.errors()[0].code(), "invalid_path");
         assert!(errs.errors()[0].msg.contains("path must be relative"));
 
         // 6. Valid combinations
         assert!(PathVal { path: "safe/path".into(), must_be_absolute: None }.check().is_ok());
-        assert!(PathVal { path: "safe/path".into(), must_be_absolute: Some(false) }.check().is_ok());
+        assert!(PathVal { path: "safe/path".into(), must_be_absolute: Some(false) }
+            .check()
+            .is_ok());
         assert!(PathVal { path: abs_path.clone(), must_be_absolute: Some(true) }.check().is_ok());
     }
 

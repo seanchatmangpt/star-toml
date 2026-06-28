@@ -1,7 +1,8 @@
 //! Error types for `star_toml`.
 
-use crate::validation::ValidationErrors;
 use std::path::PathBuf;
+
+use crate::validation::ValidationErrors;
 
 /// Alias so callers can write `star_toml::Result<T>`.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -55,25 +56,16 @@ pub enum Error {
 impl Error {
     /// Construct a validation error.
     pub fn validation(context: impl Into<String>, reason: impl Into<String>) -> Self {
-        Self::Validation {
-            context: context.into(),
-            reason: reason.into(),
-        }
+        Self::Validation { context: context.into(), reason: reason.into() }
     }
 
     /// Construct an I/O error with source path context.
     pub fn io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
-        Self::Io {
-            path: path.into(),
-            source,
-        }
+        Self::Io { path: path.into(), source }
     }
 
     /// Construct a parse error with file/location context.
     pub fn parse(path: impl Into<String>, source: toml::de::Error) -> Self {
-        Self::Parse {
-            path: path.into(),
-            source,
-        }
+        Self::Parse { path: path.into(), source }
     }
 }
