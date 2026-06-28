@@ -3,6 +3,10 @@ name = "star-toml-derive"
 version = "26.6.27"
 edition = "2021"
 rust-version = "1.82"
+authors = ["Sean Chatman <sean@chatmangpt.com>"]
+license = "MIT"
+description = "Procedural macro derive crate for star-toml validation"
+repository = "https://github.com/seanchatmangpt/star-toml"
 
 [lib]
 proc-macro = true
