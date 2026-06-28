@@ -34,6 +34,10 @@ pub struct PathWitness {
     pub policy: String,
     /// `true` if this path was accepted by the policy.
     pub accepted: bool,
+    /// If `accepted` is `false`, the rejection error code (e.g. `"path_traversal_detected"`).
+    pub rejection_code: Option<String>,
+    /// For `PathPolicy::Sandbox`, the sandbox root that was enforced.
+    pub sandbox_root: Option<PathBuf>,
 }
 
 // ---------------------------------------------------------------------------
@@ -63,13 +67,19 @@ pub fn resolve_and_validate(
         PathPolicy::RelativeOnly => "RelativeOnly",
         PathPolicy::BlockForbidden => "BlockForbidden",
     };
+    let sandbox_root = match policy {
+        PathPolicy::Sandbox { root } => Some(root.clone()),
+        _ => None,
+    };
 
-    let make_witness = |resolved: Option<PathBuf>, accepted: bool| PathWitness {
+    let make_witness = |resolved: Option<PathBuf>, accepted: bool, code: Option<&str>| PathWitness {
         raw_path: raw_path.to_owned(),
         source_path: source_path.to_path_buf(),
         resolved_path: resolved,
         policy: policy_name.to_owned(),
         accepted,
+        rejection_code: code.map(str::to_owned),
+        sandbox_root: sandbox_root.clone(),
     };
 
     // Reject null bytes
@@ -77,12 +87,22 @@ pub fn resolve_and_validate(
         return Err("null_byte_detected".to_owned());
     }
 
-    // Reject `..` components
-    let p = Path::new(raw_path);
-    let has_traversal = p.components().any(|c| c == Component::ParentDir);
+    // RelativeOnly must reject absolute paths before traversal check
+    if matches!(policy, PathPolicy::RelativeOnly) && Path::new(raw_path).is_absolute() {
+        return Err("relative_only_escape:absolute_path_forbidden".to_owned());
+    }
+
+    // Reject `..` components — check both Unix separators and Windows-style `\`
+    // on Unix, `\` is a legal filename char so Path::components() does not split
+    // on it; a raw string check is required to catch `foo\..\bar` bypass attempts.
+    let normalised = raw_path.replace('\\', "/");
+    let p = Path::new(&normalised);
+    let has_traversal = p.components().any(|c| c == Component::ParentDir)
+        || normalised.split('/').any(|seg| seg == "..");
     if has_traversal {
         return Err("path_traversal_detected".to_owned());
     }
+    let p = Path::new(raw_path); // use original for resolution below
 
     // Resolve relative to source_path.parent()
     let base_dir = source_path.parent().unwrap_or_else(|| Path::new("."));
@@ -109,20 +129,18 @@ pub fn resolve_and_validate(
         PathPolicy::Sandbox { root } => {
             let clean_root = clean_path(root);
             if !resolved.starts_with(&clean_root) {
-                let w = make_witness(Some(resolved), false);
-                return Err(format!("sandbox_escape:{}", w.raw_path));
+                return Err(format!("sandbox_escape:{}", raw_path));
             }
         }
         PathPolicy::RelativeOnly => {
             let clean_base = clean_path(base_dir);
             if !resolved.starts_with(&clean_base) {
-                let w = make_witness(Some(resolved), false);
-                return Err(format!("relative_only_escape:{}", w.raw_path));
+                return Err(format!("relative_only_escape:{}", raw_path));
             }
         }
     }
 
-    let witness = make_witness(Some(resolved.clone()), true);
+    let witness = make_witness(Some(resolved.clone()), true, None);
     Ok((resolved, witness))
 }
 

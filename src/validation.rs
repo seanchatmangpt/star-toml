@@ -884,6 +884,12 @@ impl Validator {
                     resolved_path: None,
                     policy: format!("{policy:?}").split_whitespace().next().unwrap_or("Unknown").to_owned(),
                     accepted: false,
+                    rejection_code: Some(clean_code.to_owned()),
+                    sandbox_root: if let crate::path::PathPolicy::Sandbox { root } = policy {
+                        Some(root.clone())
+                    } else {
+                        None
+                    },
                 });
                 self.at(field, |v| {
                     v.error(ErrorKind::Predicate { code: clean_code }, msg);
