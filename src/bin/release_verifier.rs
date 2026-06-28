@@ -1,4 +1,4 @@
-//! Release verifier binary for checking the 16 release gate counterexamples.
+//! Release verifier binary for checking the 19 release gate counterexamples.
 //!
 //! Exits non-zero if any counterexample is active or if git status is dirty (unless overridden).
 
@@ -54,6 +54,26 @@ fn strip_comments_and_strings(content: &str) -> String {
         }
     }
     clean
+}
+
+fn parse_package_version(cargo_toml_path: &Path) -> Result<String, String> {
+    let content = fs::read_to_string(cargo_toml_path)
+        .map_err(|e| format!("Failed to read Cargo.toml: {}", e))?;
+    let mut in_package = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_package = trimmed == "[package]";
+        }
+        if in_package && trimmed.starts_with("version") {
+            let parts: Vec<&str> = trimmed.split('=').collect();
+            if parts.len() == 2 {
+                let ver = parts[1].trim().trim_matches('"').trim();
+                return Ok(ver.to_string());
+            }
+        }
+    }
+    Err("version key not found under [package] section".to_string())
 }
 
 fn main() {
@@ -438,6 +458,147 @@ fn run_release_checks() -> Vec<Check> {
                 ok = false;
                 note = "star-toml-lsp dependency configuration is invalid.".to_string();
             }
+        }
+        (ok, note)
+    }));
+
+    // 17. version_alignment_drift
+    results.push(check!("version_alignment_drift", {
+        let mut ok = true;
+        let mut note = "Verified: workspace package versions and dependency specifications are fully aligned.".to_string();
+        
+        let root_ver = parse_package_version(&root.join("Cargo.toml"));
+        let derive_ver = parse_package_version(&root.join("star-toml-derive/Cargo.toml"));
+        let lsp_ver = parse_package_version(&root.join("star-toml-lsp/Cargo.toml"));
+
+        match (root_ver, derive_ver, lsp_ver) {
+            (Ok(rv), Ok(dv), Ok(lv)) => {
+                if rv != dv {
+                    ok = false;
+                    note = format!("Version mismatch: star-toml ({}) vs star-toml-derive ({})", rv, dv);
+                } else if rv != lv {
+                    ok = false;
+                    note = format!("Version mismatch: star-toml ({}) vs star-toml-lsp ({})", rv, lv);
+                } else {
+                    let root_content = fs::read_to_string(root.join("Cargo.toml")).unwrap_or_default();
+                    let expected_version_str = format!("\"{}\"", rv);
+                    
+                    let mut found_derive_dep = false;
+                    for line in root_content.lines() {
+                        let trimmed = line.trim();
+                        if trimmed.starts_with("star-toml-derive") {
+                            if trimmed.contains(&expected_version_str) {
+                                found_derive_dep = true;
+                                break;
+                            }
+                        }
+                    }
+                    if !found_derive_dep {
+                        ok = false;
+                        note = format!("Root Cargo.toml dependency on star-toml-derive does not specify version {}", rv);
+                    }
+                    
+                    let lsp_content = fs::read_to_string(root.join("star-toml-lsp/Cargo.toml")).unwrap_or_default();
+                    let mut found_lsp_dep = false;
+                    for line in lsp_content.lines() {
+                        let trimmed = line.trim();
+                        if trimmed.starts_with("star-toml") && !trimmed.starts_with("star-toml-lsp") {
+                            if trimmed.contains(&expected_version_str) {
+                                found_lsp_dep = true;
+                                break;
+                            }
+                        }
+                    }
+                    if !found_lsp_dep {
+                        ok = false;
+                        note = format!("star-toml-lsp dependency on star-toml does not specify version {}", rv);
+                    }
+                }
+            }
+            (Err(e), _, _) => {
+                ok = false;
+                note = format!("Root Cargo.toml version error: {}", e);
+            }
+            (_, Err(e), _) => {
+                ok = false;
+                note = format!("star-toml-derive Cargo.toml version error: {}", e);
+            }
+            (_, _, Err(e)) => {
+                ok = false;
+                note = format!("star-toml-lsp Cargo.toml version error: {}", e);
+            }
+        }
+        (ok, note)
+    }));
+
+    // 18. git_release_tag_missing
+    results.push(check!("git_release_tag_missing", {
+        let mut ok = true;
+        let mut note = "Verified: a git tag matching the package version exists.".to_string();
+
+        match parse_package_version(&root.join("Cargo.toml")) {
+            Err(e) => {
+                ok = false;
+                note = format!("Root Cargo.toml version error: {}", e);
+            }
+            Ok(root_ver) => {
+                let tag_name = format!("v{}", root_ver);
+                match Command::new("git").args(&["tag"]).output() {
+                    Err(e) => {
+                        ok = false;
+                        note = format!("Failed to run git tag: {}", e);
+                    }
+                    Ok(output) => {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let mut found = false;
+                        for line in stdout.lines() {
+                            if line.trim() == tag_name {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            ok = false;
+                            note = format!("Git tag `{}` matching version `{}` is missing.", tag_name, root_ver);
+                        }
+                    }
+                }
+            }
+        }
+        (ok, note)
+    }));
+
+    // 19. example_runtime_panic
+    results.push(check!("example_runtime_panic", {
+        let mut ok = true;
+        let mut note = "Verified: all examples compile and run to completion (exit 0) successfully.".to_string();
+        
+        let mut failed_examples = Vec::new();
+        if let Ok(entries) = fs::read_dir(root.join("examples")) {
+            for entry in entries.filter_map(Result::ok) {
+                if entry.path().extension().map_or(false, |ext| ext == "rs") {
+                    let file_stem = entry.path().file_stem().unwrap().to_string_lossy().into_owned();
+                    let run_res = Command::new("cargo")
+                        .args(&["run", "--quiet", "--example", &file_stem])
+                        .output();
+                    match run_res {
+                        Err(e) => {
+                            ok = false;
+                            failed_examples.push(format!("{} (failed to execute: {})", file_stem, e));
+                        }
+                        Ok(output) => {
+                            if !output.status.success() {
+                                ok = false;
+                                let stderr = String::from_utf8_lossy(&output.stderr);
+                                failed_examples.push(format!("{} (exit code: {:?}, stderr: {})", file_stem, output.status.code(), stderr.trim()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !ok {
+            note = format!("Examples failed to run successfully: {:?}", failed_examples);
         }
         (ok, note)
     }));
