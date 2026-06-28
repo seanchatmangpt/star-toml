@@ -15,7 +15,11 @@ use toml::Value;
 use crate::{
     error::{Error, Result},
     expand::expand_env_vars,
-    merge::{deep_merge, env_str_to_value, set_dotted},
+    merge::{deep_merge, deep_merge_traced, env_str_to_value, set_dotted, WinnerMap},
+    reports::{
+        blake3_hex, CoercedType, EnvOverrideEntry, EnvOverrideReport, LayerEntry, LayerReport,
+        SourceEntry, SourceKind, SourceReport,
+    },
     validation::Validate,
 };
 
@@ -857,6 +861,563 @@ impl TrustedLoader {
         }
 
         Ok(TrustedConfig { value, source, validation, digest })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// WP-1: Additional typestate markers
+// ---------------------------------------------------------------------------
+
+/// State after all file layers are loaded, merged with provenance tracking, and
+/// sources are registered in a [`SourceReport`].
+///
+/// This is the entry point for the trusted pipeline. From here, apply env overrides
+/// (→ [`EnvResolved`]) then continue the lifecycle.
+///
+/// `AdmittedConfig<T>`, `ConfigWitness`, and `q_config` are deferred to a later
+/// work package and do not exist yet.
+#[derive(Debug, Clone)]
+pub struct BoundedSources {
+    /// Merged TOML value from all file layers (env not yet applied).
+    pub value: Value,
+    /// Provenance record for every source registered during loading.
+    pub source_report: SourceReport,
+    /// Per-layer merge provenance.
+    pub layer_report: LayerReport,
+    /// Cumulative field-provenance map after all file layers — every leaf maps to its
+    /// current winning layer-id string.
+    pub global_winner_map: WinnerMap,
+}
+
+/// State after env-var overrides have been applied and recorded.
+///
+/// Carries all prior reports forwarded from [`BoundedSources`].
+#[derive(Debug, Clone)]
+pub struct EnvResolved {
+    /// Merged TOML value with env overrides applied.
+    pub value: Value,
+    /// Forwarded from [`BoundedSources`].
+    pub source_report: SourceReport,
+    /// Forwarded from [`BoundedSources`].
+    pub layer_report: LayerReport,
+    /// Env-override provenance for variables that matched the configured prefix.
+    pub env_report: EnvOverrideReport,
+    /// Cumulative field-provenance map after env overrides; env entries overwrite
+    /// file-layer entries for fields they touch.
+    pub global_winner_map: WinnerMap,
+}
+
+/// Terminal result of [`TrustedLoader::load_frozen`].
+///
+/// Bundles the frozen config with the full provenance reports produced during
+/// the loading pipeline. Designed so a future OCEL lifecycle-history export can
+/// consume `source_report`, `layer_report`, and `env_report` directly.
+///
+/// `AdmittedConfig<T>`, `ConfigWitness`, and `q_config` are deferred.
+#[derive(Debug)]
+pub struct FrozenLoadResult<T> {
+    /// The frozen, validated configuration.
+    pub config: Config<Frozen<T>>,
+    /// Source provenance.
+    pub source_report: SourceReport,
+    /// Layer merge provenance.
+    pub layer_report: LayerReport,
+    /// Env-override provenance.
+    pub env_report: EnvOverrideReport,
+    /// Final cumulative field-provenance map.
+    pub global_winner_map: WinnerMap,
+}
+
+// ---------------------------------------------------------------------------
+// Config<BoundedSources> — WP-1 / WP-2
+// ---------------------------------------------------------------------------
+
+impl Config<BoundedSources> {
+    /// Name of this typestate for diagnostics.
+    pub fn state_name(&self) -> &'static str {
+        "BoundedSources"
+    }
+
+    /// Access the source provenance report.
+    pub fn source_report(&self) -> &SourceReport {
+        &self.state.source_report
+    }
+
+    /// Access the layer merge provenance report.
+    pub fn layer_report(&self) -> &LayerReport {
+        &self.state.layer_report
+    }
+
+    /// Access the cumulative field-provenance map after all file layers.
+    pub fn global_winner_map(&self) -> &WinnerMap {
+        &self.state.global_winner_map
+    }
+
+    /// Apply env-var overrides using `prefix` and transition to [`EnvResolved`].
+    ///
+    /// Only variables whose names start with `prefix` (case-insensitive) are
+    /// processed. Unrelated ambient OS variables (`PATH`, `HOME`, `SHELL`, etc.)
+    /// are ignored and never appear in the report.
+    ///
+    /// An env var that matches the prefix but maps to an empty TOML path after
+    /// stripping the prefix and transforming `__` → `.` is rejected with code
+    /// `"empty_path"`.
+    pub fn apply_env(self, prefix: Option<&str>) -> Result<Config<EnvResolved>> {
+        let mut value = self.state.value;
+        let mut global_winner_map = self.state.global_winner_map;
+        let mut env_report = EnvOverrideReport::default();
+
+        if let Some(prefix) = prefix {
+            env_report.prefix = prefix.to_owned();
+            let prefix_upper = prefix.to_ascii_uppercase();
+
+            for (key, raw_val) in std::env::vars() {
+                let key_upper = key.to_ascii_uppercase();
+                if let Some(suffix) = key_upper.strip_prefix(&prefix_upper) {
+                    let toml_key = suffix.replace("__", ".").to_ascii_lowercase();
+                    let raw_digest = blake3_hex(raw_val.as_bytes());
+                    let accepted = !toml_key.is_empty();
+
+                    if accepted {
+                        let toml_val = env_str_to_value(&raw_val);
+                        let coerced_type = match &toml_val {
+                            Value::Boolean(_) => CoercedType::Bool,
+                            Value::Integer(_) => CoercedType::Integer,
+                            Value::Float(_) => CoercedType::Float,
+                            _ => CoercedType::Str,
+                        };
+                        let coerced_repr = toml_val.to_string();
+                        let coerced_digest = blake3_hex(coerced_repr.as_bytes());
+
+                        set_dotted(&mut value, &toml_key, toml_val);
+                        global_winner_map.insert(toml_key.clone(), "env".to_owned());
+
+                        env_report.entries.push(EnvOverrideEntry {
+                            raw_env_key: key,
+                            configured_prefix: prefix.to_owned(),
+                            mapped_path: toml_key,
+                            raw_value_digest: raw_digest,
+                            coerced_type: Some(coerced_type),
+                            coerced_value_digest: Some(coerced_digest),
+                            accepted: true,
+                            rejection_code: None,
+                        });
+                    } else {
+                        env_report.entries.push(EnvOverrideEntry {
+                            raw_env_key: key,
+                            configured_prefix: prefix.to_owned(),
+                            mapped_path: String::new(),
+                            raw_value_digest: raw_digest,
+                            coerced_type: None,
+                            coerced_value_digest: None,
+                            accepted: false,
+                            rejection_code: Some("empty_path".to_owned()),
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(Config {
+            state: EnvResolved {
+                value,
+                source_report: self.state.source_report,
+                layer_report: self.state.layer_report,
+                env_report,
+                global_winner_map,
+            },
+            path: self.path,
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Config<EnvResolved> — WP-1 / WP-2
+// ---------------------------------------------------------------------------
+
+impl Config<EnvResolved> {
+    /// Name of this typestate for diagnostics.
+    pub fn state_name(&self) -> &'static str {
+        "EnvResolved"
+    }
+
+    pub fn source_report(&self) -> &SourceReport {
+        &self.state.source_report
+    }
+
+    pub fn layer_report(&self) -> &LayerReport {
+        &self.state.layer_report
+    }
+
+    pub fn env_report(&self) -> &EnvOverrideReport {
+        &self.state.env_report
+    }
+
+    pub fn global_winner_map(&self) -> &WinnerMap {
+        &self.state.global_winner_map
+    }
+
+    /// Deserialize and normalize into `T`, transitioning to [`Deserialized<T>`].
+    pub fn deserialize<T: DeserializeOwned + ConfigLifecycle>(
+        self,
+    ) -> Result<Config<Deserialized<T>>> {
+        let mut value: T = deserialize_value(self.state.value, "merged config")?;
+        value.normalize();
+        Ok(Config { state: Deserialized(value), path: self.path })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Loader::load_bounded — WP-1 / WP-2 / WP-3
+// ---------------------------------------------------------------------------
+
+impl Loader {
+    /// Load all file layers with full provenance tracking, producing [`Config<BoundedSources>`].
+    ///
+    /// Unlike [`load_raw`], this method:
+    /// - records a [`SourceReport`] for every source (including optional-missing files)
+    /// - uses [`deep_merge_traced`] to produce per-layer and cumulative [`WinnerMap`]s
+    /// - does **not** apply env-var overrides (call [`Config::apply_env`] next)
+    ///
+    /// [`load_raw`]: Loader::load_raw
+    pub fn load_bounded(self) -> Result<Config<BoundedSources>> {
+        let mut merged = Value::Table(toml::map::Map::new());
+        let mut last_file_path =
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let mut source_report = SourceReport::default();
+        let mut layer_report = LayerReport::default();
+        let mut global_winner_map = WinnerMap::new();
+        let mut layer_order_acc = String::new();
+
+        for layer in self.layers {
+            match layer {
+                ConfigLayer::Str(content, label) => {
+                    let source_id = source_report.entries.len();
+                    let digest = blake3_hex(content.as_bytes());
+                    let size = content.len() as u64;
+
+                    source_report.entries.push(SourceEntry {
+                        source_id,
+                        source_kind: SourceKind::Str,
+                        label: label.to_owned(),
+                        path: None,
+                        required: true,
+                        found: true,
+                        digest: Some(digest.clone()),
+                        size_bytes: Some(size),
+                        source_root: None,
+                        source_parent: None,
+                    });
+
+                    let expanded = expand_env_vars(&content);
+                    let val: Value = parse_str(&expanded, label)?;
+                    let layer_id_str = format!("layer-{source_id}");
+
+                    layer_order_acc.push_str(&digest);
+                    let layer_order_digest = blake3_hex(layer_order_acc.as_bytes());
+
+                    let mut layer_winner_map = WinnerMap::new();
+                    deep_merge_traced(
+                        &mut merged,
+                        val,
+                        &layer_id_str,
+                        "",
+                        &mut layer_winner_map,
+                    );
+                    global_winner_map.extend(layer_winner_map.clone());
+
+                    layer_report.entries.push(LayerEntry {
+                        layer_id: layer_report.entries.len(),
+                        layer_name: label.to_owned(),
+                        priority: layer_report.entries.len(),
+                        source_id,
+                        digest,
+                        layer_order_digest,
+                        winning_field_map: layer_winner_map,
+                    });
+                }
+
+                ConfigLayer::File(path) => {
+                    let source_id = source_report.entries.len();
+                    if !path.exists() {
+                        source_report.entries.push(SourceEntry {
+                            source_id,
+                            source_kind: SourceKind::File,
+                            label: path.display().to_string(),
+                            path: Some(path.clone()),
+                            required: true,
+                            found: false,
+                            digest: None,
+                            size_bytes: None,
+                            source_root: None,
+                            source_parent: None,
+                        });
+                        return Err(Error::FileNotFound(path));
+                    }
+
+                    let content = std::fs::read_to_string(&path)
+                        .map_err(|e| Error::io(&path, e))?;
+                    let digest = blake3_hex(content.as_bytes());
+                    let size = content.len() as u64;
+                    let source_root = path.parent().map(PathBuf::from);
+                    let source_parent =
+                        source_root.as_ref().and_then(|p| p.parent()).map(PathBuf::from);
+
+                    source_report.entries.push(SourceEntry {
+                        source_id,
+                        source_kind: SourceKind::File,
+                        label: path.display().to_string(),
+                        path: Some(path.clone()),
+                        required: true,
+                        found: true,
+                        digest: Some(digest.clone()),
+                        size_bytes: Some(size),
+                        source_root,
+                        source_parent,
+                    });
+
+                    let expanded = expand_env_vars(&content);
+                    let val: Value = parse_str(&expanded, &path.display().to_string())?;
+                    let layer_id_str = format!("layer-{source_id}");
+
+                    last_file_path = path;
+                    layer_order_acc.push_str(&digest);
+                    let layer_order_digest = blake3_hex(layer_order_acc.as_bytes());
+                    let layer_name =
+                        source_report.entries.last().unwrap().label.clone();
+
+                    let mut layer_winner_map = WinnerMap::new();
+                    deep_merge_traced(
+                        &mut merged,
+                        val,
+                        &layer_id_str,
+                        "",
+                        &mut layer_winner_map,
+                    );
+                    global_winner_map.extend(layer_winner_map.clone());
+
+                    layer_report.entries.push(LayerEntry {
+                        layer_id: layer_report.entries.len(),
+                        layer_name,
+                        priority: layer_report.entries.len(),
+                        source_id,
+                        digest,
+                        layer_order_digest,
+                        winning_field_map: layer_winner_map,
+                    });
+                }
+
+                ConfigLayer::FileIfExists(path) => {
+                    let source_id = source_report.entries.len();
+                    if !path.exists() {
+                        source_report.entries.push(SourceEntry {
+                            source_id,
+                            source_kind: SourceKind::OptionalFile,
+                            label: path.display().to_string(),
+                            path: Some(path),
+                            required: false,
+                            found: false,
+                            digest: None,
+                            size_bytes: None,
+                            source_root: None,
+                            source_parent: None,
+                        });
+                        continue;
+                    }
+
+                    let content = std::fs::read_to_string(&path)
+                        .map_err(|e| Error::io(&path, e))?;
+                    let digest = blake3_hex(content.as_bytes());
+                    let size = content.len() as u64;
+                    let source_root = path.parent().map(PathBuf::from);
+                    let source_parent =
+                        source_root.as_ref().and_then(|p| p.parent()).map(PathBuf::from);
+
+                    source_report.entries.push(SourceEntry {
+                        source_id,
+                        source_kind: SourceKind::OptionalFile,
+                        label: path.display().to_string(),
+                        path: Some(path.clone()),
+                        required: false,
+                        found: true,
+                        digest: Some(digest.clone()),
+                        size_bytes: Some(size),
+                        source_root,
+                        source_parent,
+                    });
+
+                    let expanded = expand_env_vars(&content);
+                    let val: Value = parse_str(&expanded, &path.display().to_string())?;
+                    let layer_id_str = format!("layer-{source_id}");
+
+                    last_file_path = path;
+                    layer_order_acc.push_str(&digest);
+                    let layer_order_digest = blake3_hex(layer_order_acc.as_bytes());
+                    let layer_name =
+                        source_report.entries.last().unwrap().label.clone();
+
+                    let mut layer_winner_map = WinnerMap::new();
+                    deep_merge_traced(
+                        &mut merged,
+                        val,
+                        &layer_id_str,
+                        "",
+                        &mut layer_winner_map,
+                    );
+                    global_winner_map.extend(layer_winner_map.clone());
+
+                    layer_report.entries.push(LayerEntry {
+                        layer_id: layer_report.entries.len(),
+                        layer_name,
+                        priority: layer_report.entries.len(),
+                        source_id,
+                        digest,
+                        layer_order_digest,
+                        winning_field_map: layer_winner_map,
+                    });
+                }
+
+                ConfigLayer::FindFile(file_name) => {
+                    let source_id = source_report.entries.len();
+                    match find_config_file_from_cwd(&file_name) {
+                        None => {
+                            source_report.entries.push(SourceEntry {
+                                source_id,
+                                source_kind: SourceKind::FindFile,
+                                label: file_name,
+                                path: None,
+                                required: false,
+                                found: false,
+                                digest: None,
+                                size_bytes: None,
+                                source_root: None,
+                                source_parent: None,
+                            });
+                        }
+                        Some(path) => {
+                            let content = std::fs::read_to_string(&path)
+                                .map_err(|e| Error::io(&path, e))?;
+                            let digest = blake3_hex(content.as_bytes());
+                            let size = content.len() as u64;
+                            let source_root = path.parent().map(PathBuf::from);
+                            let source_parent = source_root
+                                .as_ref()
+                                .and_then(|p| p.parent())
+                                .map(PathBuf::from);
+
+                            source_report.entries.push(SourceEntry {
+                                source_id,
+                                source_kind: SourceKind::FindFile,
+                                label: path.display().to_string(),
+                                path: Some(path.clone()),
+                                required: false,
+                                found: true,
+                                digest: Some(digest.clone()),
+                                size_bytes: Some(size),
+                                source_root,
+                                source_parent,
+                            });
+
+                            let expanded = expand_env_vars(&content);
+                            let val: Value =
+                                parse_str(&expanded, &path.display().to_string())?;
+                            let layer_id_str = format!("layer-{source_id}");
+
+                            last_file_path = path;
+                            layer_order_acc.push_str(&digest);
+                            let layer_order_digest =
+                                blake3_hex(layer_order_acc.as_bytes());
+                            let layer_name =
+                                source_report.entries.last().unwrap().label.clone();
+
+                            let mut layer_winner_map = WinnerMap::new();
+                            deep_merge_traced(
+                                &mut merged,
+                                val,
+                                &layer_id_str,
+                                "",
+                                &mut layer_winner_map,
+                            );
+                            global_winner_map.extend(layer_winner_map.clone());
+
+                            layer_report.entries.push(LayerEntry {
+                                layer_id: layer_report.entries.len(),
+                                layer_name,
+                                priority: layer_report.entries.len(),
+                                source_id,
+                                digest,
+                                layer_order_digest,
+                                winning_field_map: layer_winner_map,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(Config {
+            state: BoundedSources {
+                value: merged,
+                source_report,
+                layer_report,
+                global_winner_map,
+            },
+            path: last_file_path,
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TrustedLoader::load_frozen — WP-1 terminal API for this slice
+// ---------------------------------------------------------------------------
+
+impl TrustedLoader {
+    /// Run the full pre-admission pipeline and produce a frozen, validated config
+    /// with complete provenance reports.
+    ///
+    /// Pipeline:
+    /// ```text
+    /// load sources (→ SourceReport)
+    /// → bound/register sources (→ BoundedSources with LayerReport + WinnerMap)
+    /// → apply env overrides (→ EnvResolved with EnvOverrideReport)
+    /// → deserialize
+    /// → validate        ← validation is mandatory; cannot be skipped
+    /// → freeze          ← Frozen<T> is the terminal pre-admission state for this slice
+    /// ```
+    ///
+    /// Returns [`FrozenLoadResult<T>`] which bundles the frozen config with all three
+    /// provenance reports. The reports are designed to feed a future OCEL
+    /// lifecycle-history export.
+    ///
+    /// # Deferred
+    ///
+    /// `AdmittedConfig<T>`, `ConfigWitness`, and `q_config` are not yet implemented.
+    /// `load_admitted()` is deferred until the witness layer exists.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any required file is missing, parsing fails, or validation
+    /// produces any `Error`-or-above severity findings.
+    pub fn load_frozen<T: DeserializeOwned + Validate + ConfigLifecycle>(
+        mut self,
+    ) -> Result<FrozenLoadResult<T>> {
+        // Separate env prefix from the loader so load_bounded skips env.
+        // Env application happens in apply_env with full tracking.
+        let env_prefix = self.loader.env_prefix.take();
+
+        let bounded = self.loader.load_bounded()?;
+        let env_resolved = bounded.apply_env(env_prefix.as_deref())?;
+
+        let source_report = env_resolved.state.source_report.clone();
+        let layer_report = env_resolved.state.layer_report.clone();
+        let env_report = env_resolved.state.env_report.clone();
+        let global_winner_map = env_resolved.state.global_winner_map.clone();
+
+        let deser = env_resolved.deserialize::<T>()?;
+        let validated = deser.validate()?;
+        let config = validated.freeze();
+
+        Ok(FrozenLoadResult { config, source_report, layer_report, env_report, global_winner_map })
     }
 }
 

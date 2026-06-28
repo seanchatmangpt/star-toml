@@ -1,0 +1,231 @@
+@base <urn:star-toml:> .
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+#################################################################
+# Document
+#################################################################
+
+<doc/star-toml-detectors-ttl>
+    a dcat:Dataset, prov:Entity ;
+    dcterms:title "star-toml v26.6.28 Detectors TTL Ontology" ;
+    dcterms:description "Counterexamples, validation rules, and testing ontology for star-toml config standing." ;
+    dcterms:identifier "star-toml-detectors-ttl" ;
+    dcterms:subject <concept/CounterexampleSet>, <concept/TestCategories> ;
+    dcterms:hasVersion "26.6.28" .
+
+#################################################################
+# Counterexample Detector Set
+#################################################################
+
+<concept/CounterexampleSet>
+    a skos:Concept ;
+    skos:prefLabel "C_config" ;
+    skos:definition "Set of detector functions c_i : State → {0,1}. q_config = 0 iff any detector fires." ;
+    skos:narrower
+        <detector/parse_valid_treated_as_trusted>,
+        <detector/implicit_source_used>,
+        <detector/missing_required_file_not_error>,
+        <detector/ambiguous_layer_order>,
+        <detector/unreported_layer_override>,
+        <detector/env_override_without_prefix>,
+        <detector/env_override_not_reported>,
+        <detector/unknown_field_accepted_in_trusted_mode>,
+        <detector/validation_not_run>,
+        <detector/validation_error_without_path>,
+        <detector/fatal_error_downgraded>,
+        <detector/path_traversal_accepted>,
+        <detector/null_byte_path_accepted>,
+        <detector/source_relative_path_unresolved>,
+        <detector/nondeterministic_save>,
+        <detector/comment_preservation_claim_unproven>,
+        <detector/rewrite_without_validation>,
+        <detector/witness_missing_source_digest>,
+        <detector/witness_missing_env_report>,
+        <detector/witness_missing_validation_report>,
+        <detector/witness_nondeterministic>,
+        <detector/downstream_policy_inside_star_toml>,
+        <detector/ocel_treated_as_standing_authority> .
+
+<detector/parse_valid_treated_as_trusted>
+    a skos:Concept ;
+    skos:prefLabel "parse_valid_treated_as_trusted" ;
+    skos:definition "Fires when syntactically valid TOML is treated as trusted/admitted config without full lifecycle admission." .
+
+<detector/implicit_source_used>
+    a skos:Concept ;
+    skos:prefLabel "implicit_source_used" ;
+    skos:definition "Fires when a config source influences output without being explicitly registered and reported." .
+
+<detector/missing_required_file_not_error>
+    a skos:Concept ;
+    skos:prefLabel "missing_required_file_not_error" ;
+    skos:definition "Fires when a required config file is absent but loading succeeds." .
+
+<detector/ambiguous_layer_order>
+    a skos:Concept ;
+    skos:prefLabel "ambiguous_layer_order" ;
+    skos:definition "Fires when merge precedence is nondeterministic or unreported." .
+
+<detector/unreported_layer_override>
+    a skos:Concept ;
+    skos:prefLabel "unreported_layer_override" ;
+    skos:definition "Fires when a higher-priority layer overrides a lower-priority field without winning-layer provenance." .
+
+<detector/env_override_without_prefix>
+    a skos:Concept ;
+    skos:prefLabel "env_override_without_prefix" ;
+    skos:definition "Fires when a value is admitted as an env config override without matching the configured env_prefix." .
+
+<detector/env_override_not_reported>
+    a skos:Concept ;
+    skos:prefLabel "env_override_not_reported" ;
+    skos:definition "Fires when an env override affects config but is absent from EnvOverrideReport/witness coverage." .
+
+<detector/unknown_field_accepted_in_trusted_mode>
+    a skos:Concept ;
+    skos:prefLabel "unknown_field_accepted_in_trusted_mode" ;
+    skos:definition "Fires when trusted config accepts unknown fields silently." .
+
+<detector/validation_not_run>
+    a skos:Concept ;
+    skos:prefLabel "validation_not_run" ;
+    skos:definition "Fires when typed config becomes trusted/admitted without semantic validation." .
+
+<detector/validation_error_without_path>
+    a skos:Concept ;
+    skos:prefLabel "validation_error_without_path" ;
+    skos:definition "Fires when a validation error lacks precise location/path." .
+
+<detector/fatal_error_downgraded>
+    a skos:Concept ;
+    skos:prefLabel "fatal_error_downgraded" ;
+    skos:definition "Fires when a fatal validation condition is downgraded to warning or non-fatal status." .
+
+<detector/path_traversal_accepted>
+    a skos:Concept ;
+    skos:prefLabel "path_traversal_accepted" ;
+    skos:definition "Fires when a traversal path is accepted." .
+
+<detector/null_byte_path_accepted>
+    a skos:Concept ;
+    skos:prefLabel "null_byte_path_accepted" ;
+    skos:definition "Fires when a path containing null bytes is accepted." .
+
+<detector/source_relative_path_unresolved>
+    a skos:Concept ;
+    skos:prefLabel "source_relative_path_unresolved" ;
+    skos:definition "Fires when relative paths are resolved against CWD instead of config source parent." .
+
+<detector/nondeterministic_save>
+    a skos:Concept ;
+    skos:prefLabel "nondeterministic_save" ;
+    skos:definition "Fires when canonical output is nondeterministic." .
+
+<detector/comment_preservation_claim_unproven>
+    a skos:Concept ;
+    skos:prefLabel "comment_preservation_claim_unproven" ;
+    skos:definition "Fires when comment preservation is claimed without tested implementation." .
+
+<detector/rewrite_without_validation>
+    a skos:Concept ;
+    skos:prefLabel "rewrite_without_validation" ;
+    skos:definition "Fires when config rewrite occurs before validation." .
+
+<detector/witness_missing_source_digest>
+    a skos:Concept ;
+    skos:prefLabel "witness_missing_source_digest" ;
+    skos:definition "Fires when ConfigWitness omits source digest coverage." .
+
+<detector/witness_missing_env_report>
+    a skos:Concept ;
+    skos:prefLabel "witness_missing_env_report" ;
+    skos:definition "Fires when ConfigWitness omits env override report coverage." .
+
+<detector/witness_missing_validation_report>
+    a skos:Concept ;
+    skos:prefLabel "witness_missing_validation_report" ;
+    skos:definition "Fires when ConfigWitness omits validation report coverage." .
+
+<detector/witness_nondeterministic>
+    a skos:Concept ;
+    skos:prefLabel "witness_nondeterministic" ;
+    skos:definition "Fires when identical inputs produce different ConfigWitness values." .
+
+<detector/downstream_policy_inside_star_toml>
+    a skos:Concept ;
+    skos:prefLabel "downstream_policy_inside_star_toml" ;
+    skos:definition "Fires when star-toml core embeds project-specific policy or downstream gate/cargo-cicd behavior." .
+
+<detector/ocel_treated_as_standing_authority>
+    a skos:Concept ;
+    skos:prefLabel "ocel_treated_as_standing_authority" ;
+    skos:definition "Fires when OCEL export sets, mutates, or substitutes for q_config or ConfigWitness." .
+
+#################################################################
+# Tests as Concepts
+#################################################################
+
+<concept/TestCategories>
+    a skos:Concept ;
+    skos:prefLabel "BRCE Test Categories" ;
+    skos:definition "Truth, falsification, counterfactual, invariant, metamorphic, boundary, conservation, determinism, idempotence, replay, provenance, witness." ;
+    skos:narrower
+        <test-category/truth>,
+        <test-category/falsification>,
+        <test-category/counterfactual>,
+        <test-category/invariant>,
+        <test-category/metamorphic>,
+        <test-category/boundary>,
+        <test-category/conservation>,
+        <test-category/determinism>,
+        <test-category/idempotence>,
+        <test-category/replay>,
+        <test-category/provenance>,
+        <test-category/witness> .
+
+<test-category/truth> a skos:Concept ; skos:prefLabel "truth" .
+<test-category/falsification> a skos:Concept ; skos:prefLabel "falsification" .
+<test-category/counterfactual> a skos:Concept ; skos:prefLabel "counterfactual" .
+<test-category/invariant> a skos:Concept ; skos:prefLabel "invariant" .
+<test-category/metamorphic> a skos:Concept ; skos:prefLabel "metamorphic" .
+<test-category/boundary> a skos:Concept ; skos:prefLabel "boundary" .
+<test-category/conservation> a skos:Concept ; skos:prefLabel "conservation" .
+<test-category/determinism> a skos:Concept ; skos:prefLabel "determinism" .
+<test-category/idempotence> a skos:Concept ; skos:prefLabel "idempotence" .
+<test-category/replay> a skos:Concept ; skos:prefLabel "replay" .
+<test-category/provenance> a skos:Concept ; skos:prefLabel "provenance" .
+<test-category/witness> a skos:Concept ; skos:prefLabel "witness" .
+
+<test/test_ocel_export_does_not_compute_q>
+    a prov:Activity ;
+    dcterms:title "test_ocel_export_does_not_compute_q" ;
+    dcterms:description "Proves OCEL export does not compute or define q_config on objects or events." ;
+    dcterms:subject <test-category/boundary>, <law/ocel-does-not-entail-q-config> .
+
+<test/test_lifecycle_events_export_to_ocel>
+    a prov:Activity ;
+    dcterms:title "test_lifecycle_events_export_to_ocel" ;
+    dcterms:description "Proves lifecycle events map into wasm4pm-compat OCEL types." ;
+    dcterms:subject <test-category/truth>, <concept/OCELLifecycleHistory> .
+
+<test/test_ocel_export_preserves_event_order>
+    a prov:Activity ;
+    dcterms:title "test_ocel_export_preserves_event_order" ;
+    dcterms:description "Proves exported OCEL event sequence preserves event order." ;
+    dcterms:subject <test-category/determinism>, <concept/OCELLifecycleHistory> .
+
+<test/test_ocel_export_has_config_run_object>
+    a prov:Activity ;
+    dcterms:title "test_ocel_export_has_config_run_object" ;
+    dcterms:description "Proves OCEL export includes a ConfigRun object." ;
+    dcterms:subject <test-category/provenance>, <object/ConfigRun> .

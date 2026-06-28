@@ -409,25 +409,63 @@
 )]
 
 pub mod error;
+pub mod events;
 pub mod expand;
 pub mod loader;
 pub mod merge;
+pub mod ocel;
+pub mod reports;
 pub mod schema;
 pub mod validation;
 
 pub use error::{Error, Result};
+pub use events::{AdmissionEvent, ConfigEventKind};
 pub use expand::expand_env_vars;
 pub use loader::{
     find_and_load, find_config_file, from_str, load_file, save_file, save_pretty, to_string,
-    Config, ConfigDigest, ConfigFile, ConfigLifecycle, ConfigSourceReport, Deserialized, Frozen,
-    Loader, Merged, Raw, TrustedConfig, TrustedLoader, Validated, ValidationReport,
+    BoundedSources, Config, ConfigDigest, ConfigFile, ConfigLifecycle, ConfigSourceReport,
+    Deserialized, EnvResolved, Frozen, FrozenLoadResult, Loader, Merged, Raw, TrustedConfig,
+    TrustedLoader, Validated, ValidationReport,
 };
-pub use merge::deep_merge;
+pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
+pub use ocel::export_events_to_ocel;
+// Note: export_events_to_ocel is a no-op stub unless the `wasm4pm-compat` feature is enabled.
+pub use reports::{
+    blake3_hex, CoercedType, EnvOverrideEntry, EnvOverrideReport, LayerEntry, LayerReport,
+    SourceEntry, SourceKind, SourceReport,
+};
 pub use schema::{FieldBuilder, Schema};
 pub use star_toml_derive::Validate;
 pub use validation::{
     ErrorKind, Loc, LocSegment, Severity, Validate, ValidationError, ValidationErrors, Validator,
 };
+
+// ---------------------------------------------------------------------------
+// Compile-fail invariant tests (BRCE: invariant / boundary)
+// ---------------------------------------------------------------------------
+
+/// `AdmittedConfig<T>` is not yet constructible — it is deferred until
+/// `ConfigWitness` and `q_config` exist.
+///
+/// ```compile_fail
+/// // BRCE category: invariant/boundary
+/// // AdmittedConfig<T> requires ConfigWitness, which is deferred to WP-4+.
+/// use star_toml::AdmittedConfig;
+/// let _x: AdmittedConfig<()>;
+/// ```
+pub mod _compile_fail_admitted_config {}
+
+/// `save_canonical` is only available on `Config<Validated<T>>` and
+/// `Config<Frozen<T>>` — it is rejected at compile time for `Config<Raw>`.
+///
+/// ```compile_fail
+/// // BRCE category: invariant/boundary
+/// // save_canonical must not be callable before validation.
+/// use star_toml::{Config, Raw};
+/// let c: Config<Raw> = Config::new("name = 'x'");
+/// c.save_canonical("out.toml").unwrap();
+/// ```
+pub mod _compile_fail_save_canonical_before_validation {}
 
 /// Create a new `TrustedLoader` builder.
 #[must_use]
