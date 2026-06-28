@@ -7,10 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 use star_toml::{
-    events::{AdmissionEvent, ConfigEventKind},
     loader::{ConfigLifecycle, TrustedLoader},
-    ocel::export_events_to_ocel,
-    path::{resolve_and_validate, PathPolicy},
     Validate, Validator,
 };
 
