@@ -1,0 +1,180 @@
+@base <urn:star-toml:> .
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+#################################################################
+# Document
+#################################################################
+
+<doc/star-toml-ocel-ttl>
+    a dcat:Dataset, prov:Entity ;
+    dcterms:title "star-toml v26.6.28 OCEL Mapping Ontology" ;
+    dcterms:description "Object-Centric Event Log (OCEL) mapping ontology for configuration process-evidence logging via wasm4pm-compat." ;
+    dcterms:identifier "star-toml-ocel-ttl" ;
+    dcterms:subject <concept/OCELLifecycleHistory>, <concept/ConfigLifecycle> ;
+    dcterms:hasVersion "26.6.28" ;
+    prov:wasDerivedFrom <doc/ocel-probe-receipt> .
+
+<doc/ocel-probe-receipt>
+    a prov:Entity ;
+    dcterms:title "wasm4pm-compat OCEL Export Probe Receipt" ;
+    dcterms:description "Implementation receipt showing star-toml can export lifecycle events to wasm4pm-compat OCEL types without computing q_config." .
+
+#################################################################
+# OCEL Lifecycle History
+#################################################################
+
+<concept/OCELLifecycleHistory>
+    a skos:Concept ;
+    skos:prefLabel "OCEL Lifecycle History" ;
+    skos:definition "Object-centric event history for config lifecycle process intelligence. It records what happened but does not grant q_config." ;
+    skos:related <project/wasm4pm-compat>, <law/ocel-does-not-entail-q-config> .
+
+<law/ocel-does-not-entail-q-config>
+    a skos:Concept ;
+    skos:prefLabel "OCEL ⊬ q_config" ;
+    skos:definition "OCEL records lifecycle/process history. It does not independently grant config standing." ;
+    skos:related <concept/OCELLifecycleHistory>, <concept/qConfig> .
+
+<activity/ExportOCEL>
+    a prov:Activity ;
+    dcterms:title "Export OCEL lifecycle history" ;
+    dcterms:description "One-way export of star-toml lifecycle events to wasm4pm-compat OCEL types." ;
+    prov:used <artifact/AdmissionEventLog>, <project/wasm4pm-compat> ;
+    prov:generated <artifact/OCELLog> .
+
+<artifact/AdmissionEventLog>
+    a prov:Entity ;
+    skos:prefLabel "AdmissionEventLog" ;
+    dcterms:description "Dependency-free star-toml lifecycle event stream." .
+
+<artifact/OCELLog>
+    a prov:Entity ;
+    skos:prefLabel "OCELLog" ;
+    dcterms:description "Object-centric lifecycle history produced through wasm4pm-compat OCEL support." ;
+    prov:wasGeneratedBy <activity/ExportOCEL> .
+
+<event/SourceDiscovered>
+    a prov:Activity ;
+    skos:prefLabel "SourceDiscovered" ;
+    dcterms:description "Lifecycle event recording discovery or registration of a config source." ;
+    prov:used <artifact/SourceReport> .
+
+<event/LayerMerged>
+    a prov:Activity ;
+    skos:prefLabel "LayerMerged" ;
+    dcterms:description "Lifecycle event recording deterministic layer merge and field provenance." ;
+    prov:used <artifact/LayerReport> .
+
+<event/EnvResolved>
+    a prov:Activity ;
+    skos:prefLabel "EnvResolved" ;
+    dcterms:description "Lifecycle event recording admitted env override resolution." ;
+    prov:used <artifact/EnvOverrideReport> .
+
+<event/ConfigDeserialized>
+    a prov:Activity ;
+    skos:prefLabel "ConfigDeserialized" ;
+    dcterms:description "Lifecycle event recording typed deserialization." .
+
+<event/ConfigValidated>
+    a prov:Activity ;
+    skos:prefLabel "ConfigValidated" ;
+    dcterms:description "Lifecycle event recording semantic validation." ;
+    prov:used <artifact/ValidationReport> .
+
+<event/CanonicalSaved>
+    a prov:Activity ;
+    skos:prefLabel "CanonicalSaved" ;
+    dcterms:description "Lifecycle event recording deterministic canonical save." ;
+    prov:used <artifact/CanonicalConfig> .
+
+<event/WitnessGenerated>
+    a prov:Activity ;
+    skos:prefLabel "WitnessGenerated" ;
+    dcterms:description "Lifecycle event recording witness generation. Deferred until ConfigWitness exists." ;
+    prov:used <artifact/ConfigWitness> .
+
+<event/DetectorEvaluated>
+    a prov:Activity ;
+    skos:prefLabel "DetectorEvaluated" ;
+    dcterms:description "Lifecycle event recording evaluation of a counterexample detector." .
+
+#################################################################
+# OCEL Object Concepts
+#################################################################
+
+<object/ConfigRun>
+    a skos:Concept ;
+    skos:prefLabel "ConfigRun" ;
+    skos:definition "OCEL object representing one config admission/lifecycle run." .
+
+<object/ConfigSource>
+    a skos:Concept ;
+    skos:prefLabel "ConfigSource" ;
+    skos:definition "OCEL object representing a config source." .
+
+<object/Layer>
+    a skos:Concept ;
+    skos:prefLabel "Layer" ;
+    skos:definition "OCEL object representing a deterministic config layer." .
+
+<object/EnvOverride>
+    a skos:Concept ;
+    skos:prefLabel "EnvOverride" ;
+    skos:definition "OCEL object representing an admitted environment override." .
+
+<object/ConfigField>
+    a skos:Concept ;
+    skos:prefLabel "ConfigField" ;
+    skos:definition "OCEL object representing a final config field path." .
+
+<object/ValidationReport>
+    a skos:Concept ;
+    skos:prefLabel "ValidationReport" ;
+    skos:definition "OCEL object representing semantic validation output." .
+
+<object/CanonicalConfig>
+    a skos:Concept ;
+    skos:prefLabel "CanonicalConfig" ;
+    skos:definition "OCEL object representing deterministic canonical output." .
+
+<object/ConfigWitness>
+    a skos:Concept ;
+    skos:prefLabel "ConfigWitness" ;
+    skos:definition "OCEL object representing receipt-ready witness evidence once witness layer exists." .
+
+#################################################################
+# SHACL Shapes
+#################################################################
+
+<shape/OCELDoesNotGrantStandingShape>
+    a sh:NodeShape ;
+    sh:name "OCELDoesNotGrantStandingShape" ;
+    sh:description "OCEL export must not substitute for q_config or ConfigWitness." ;
+    sh:targetNode <artifact/OCELLog> ;
+    sh:property [
+        sh:path prov:wasGeneratedBy ;
+        sh:hasValue <activity/ExportOCEL> ;
+        sh:message "OCELLog must be generated by ExportOCEL, not by GenerateWitness." ;
+    ] .
+
+#################################################################
+# Status Snapshots
+#################################################################
+
+<status/ocel-export-probe-alive>
+    a prov:Entity ;
+    dcterms:title "OCEL Export Probe ALIVE" ;
+    dcterms:description "Narrow probe status: star-toml exports lifecycle events to wasm4pm-compat OCEL types, preserves event order, creates ConfigRun object, and does not compute q_config." ;
+    prov:wasDerivedFrom <doc/ocel-probe-receipt> ;
+    dcterms:subject <concept/OCELLifecycleHistory> .

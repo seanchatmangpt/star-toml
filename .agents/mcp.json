@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "star-toml-cicd": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "mcp",
+        "fastmcp",
+        "run",
+        "mcp_server.py"
+      ],
+      "env": {
+        "CARGO_CICD_WORKSPACE": "/Users/sac/star-toml"
+      }
+    }
+  }
+}

@@ -3,7 +3,19 @@
 //! Used by [`crate::Loader`] to compose layered configs: earlier layers supply defaults,
 //! later layers override specific keys.
 
+use std::collections::BTreeMap;
+
 use toml::Value;
+
+// ---------------------------------------------------------------------------
+// Field provenance (WP-3)
+// ---------------------------------------------------------------------------
+
+/// Maps every final leaf config path (e.g. `"server.port"`) to the layer-id string
+/// of the layer that last wrote it.
+///
+/// Layer-id strings are caller-supplied tags such as `"layer-0"`, `"layer-1"`, or `"env"`.
+pub type WinnerMap = BTreeMap<String, String>;
 
 /// Recursively merge `overlay` into `base`.
 ///
@@ -49,6 +61,82 @@ pub fn deep_merge(base: &mut Value, overlay: Value) {
             }
         }
         (base, overlay) => *base = overlay,
+    }
+}
+
+/// Like [`deep_merge`] but records field-level provenance in `winner_map`.
+///
+/// Every leaf (scalar or array) that `overlay` writes is recorded as
+/// `field_path → layer_id` in `winner_map`.  Fields `overlay` does not touch
+/// retain whatever winner a prior call recorded.
+///
+/// `prefix` is a dot-separated path prefix used during recursion; pass `""` at the
+/// top call site.
+///
+/// # Merge laws
+///
+/// - `table + table` → recursive key-by-key merge (each key independently contested)
+/// - `array + array` → higher-priority array replaces lower-priority array entirely
+/// - `scalar + scalar` → higher-priority scalar replaces lower-priority scalar entirely
+///
+/// Priority order (from lowest to highest): defaults < files < env
+pub fn deep_merge_traced(
+    base: &mut Value,
+    overlay: Value,
+    layer_id: &str,
+    prefix: &str,
+    winner_map: &mut WinnerMap,
+) {
+    match (base, overlay) {
+        (Value::Table(base_tbl), Value::Table(overlay_tbl)) => {
+            for (key, val) in overlay_tbl {
+                let child_path = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}.{key}")
+                };
+                match base_tbl.get_mut(&key) {
+                    Some(existing) => {
+                        deep_merge_traced(existing, val, layer_id, &child_path, winner_map);
+                    }
+                    None => {
+                        record_all_leaves(&val, layer_id, &child_path, winner_map);
+                        base_tbl.insert(key, val);
+                    }
+                }
+            }
+        }
+        (base, overlay) => {
+            // Scalar or array replacement: this layer wins the leaf.
+            if !prefix.is_empty() {
+                winner_map.insert(prefix.to_owned(), layer_id.to_owned());
+            }
+            *base = overlay;
+        }
+    }
+}
+
+/// Recursively mark every leaf under `value` as won by `layer_id`.
+///
+/// Called when `overlay` inserts a whole new key into `base` — the entire sub-tree
+/// is owned by this layer.
+fn record_all_leaves(value: &Value, layer_id: &str, prefix: &str, winner_map: &mut WinnerMap) {
+    match value {
+        Value::Table(tbl) => {
+            for (key, val) in tbl {
+                let child = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}.{key}")
+                };
+                record_all_leaves(val, layer_id, &child, winner_map);
+            }
+        }
+        _ => {
+            if !prefix.is_empty() {
+                winner_map.insert(prefix.to_owned(), layer_id.to_owned());
+            }
+        }
     }
 }
 
@@ -195,5 +283,109 @@ mod tests {
     #[test]
     fn env_str_falls_back_to_string() {
         assert_eq!(env_str_to_value("hello"), Value::String("hello".to_owned()));
+    }
+
+    // --- deep_merge_traced ---
+
+    #[test]
+    fn traced_merge_records_winning_layers() {
+        // BRCE: conservation / provenance
+        let mut base = parse("x = 1\n");
+        let mut wm = WinnerMap::new();
+        deep_merge_traced(&mut base, parse("x = 99\n"), "layer-1", "", &mut wm);
+        assert_eq!(wm.get("x").map(String::as_str), Some("layer-1"));
+        assert_eq!(base["x"].as_integer(), Some(99));
+    }
+
+    #[test]
+    fn traced_merge_table_recursive() {
+        // BRCE: truth
+        let mut base = parse("[a]\nx = 1\ny = 2\n");
+        let overlay = parse("[a]\ny = 99\nz = 3\n");
+        let mut wm = WinnerMap::new();
+        deep_merge_traced(&mut base, overlay, "layer-1", "", &mut wm);
+        let a = base["a"].as_table().unwrap();
+        // x preserved from layer-0 (not in winner_map from this call)
+        assert_eq!(a["x"].as_integer(), Some(1));
+        // y overridden by layer-1
+        assert_eq!(a["y"].as_integer(), Some(99));
+        assert_eq!(wm.get("a.y").map(String::as_str), Some("layer-1"));
+        // z newly added by layer-1
+        assert_eq!(a["z"].as_integer(), Some(3));
+        assert_eq!(wm.get("a.z").map(String::as_str), Some("layer-1"));
+    }
+
+    #[test]
+    fn traced_merge_array_replaces_not_merges() {
+        // BRCE: invariant
+        let mut base = parse("arr = [1, 2, 3]\n");
+        let overlay = parse("arr = [4, 5]\n");
+        let mut wm = WinnerMap::new();
+        deep_merge_traced(&mut base, overlay, "layer-1", "", &mut wm);
+        let arr = base["arr"].as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_integer(), Some(4));
+        assert_eq!(wm.get("arr").map(String::as_str), Some("layer-1"));
+    }
+
+    #[test]
+    fn traced_merge_scalar_replacement() {
+        // BRCE: invariant
+        let mut base = parse("n = 1\n");
+        let mut wm = WinnerMap::new();
+        deep_merge_traced(&mut base, parse("n = 42\n"), "env", "", &mut wm);
+        assert_eq!(base["n"].as_integer(), Some(42));
+        assert_eq!(wm.get("n").map(String::as_str), Some("env"));
+    }
+
+    #[test]
+    fn traced_merge_layer_order_defaults_files_env() {
+        // BRCE: determinism
+        // defaults < file < env  — later wins
+        let mut merged = parse("port = 1\nname = \"default\"\n");
+        let mut wm = WinnerMap::new();
+
+        deep_merge_traced(&mut merged, parse("port = 2\n"), "layer-file", "", &mut wm);
+        deep_merge_traced(&mut merged, parse("port = 3\n"), "env", "", &mut wm);
+
+        assert_eq!(merged["port"].as_integer(), Some(3));
+        assert_eq!(wm.get("port").map(String::as_str), Some("env"));
+        // name was not touched by file or env, so not in wm from these calls
+        // (it was set before the traced calls)
+        assert_eq!(merged["name"].as_str(), Some("default"));
+    }
+
+    #[test]
+    fn traced_merge_every_field_has_winning_layer() {
+        // BRCE: conservation
+        // After all layers applied, every leaf in the final value must have a winner.
+        let mut merged = Value::Table(toml::map::Map::new());
+        let mut wm = WinnerMap::new();
+
+        deep_merge_traced(&mut merged, parse("a = 1\n[s]\nb = 2\n"), "layer-0", "", &mut wm);
+        deep_merge_traced(&mut merged, parse("[s]\nc = 3\n"), "layer-1", "", &mut wm);
+
+        // Collect all leaf paths from the merged value
+        fn leaves(val: &Value, prefix: &str) -> Vec<String> {
+            match val {
+                Value::Table(t) => t
+                    .iter()
+                    .flat_map(|(k, v)| {
+                        let p = if prefix.is_empty() {
+                            k.clone()
+                        } else {
+                            format!("{prefix}.{k}")
+                        };
+                        leaves(v, &p)
+                    })
+                    .collect(),
+                _ => vec![prefix.to_owned()],
+            }
+        }
+
+        let leaf_paths = leaves(&merged, "");
+        for path in &leaf_paths {
+            assert!(wm.contains_key(path), "field '{path}' has no winning layer");
+        }
     }
 }

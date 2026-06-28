@@ -1,0 +1,529 @@
+@base <urn:star-toml:> .
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+#################################################################
+# Document
+#################################################################
+
+<doc/star-toml-core-ttl>
+    a dcat:Dataset, prov:Entity ;
+    dcterms:title "star-toml v26.6.28 Core TTL Ontology" ;
+    dcterms:description "Core RDF/Turtle ontology for star-toml as the Vision 2030 config admission substrate. Models BRCE, bounds, lifecycles, and artifacts." ;
+    dcterms:identifier "star-toml-core-ttl" ;
+    dcterms:subject <concept/BRCE>, <concept/ConfigAdmission> ;
+    dcterms:hasVersion "26.6.28" ;
+    prov:wasDerivedFrom <doc/vision-2030-star-toml>, <doc/jira-st-101-st-110> .
+
+<doc/vision-2030-star-toml>
+    a prov:Entity ;
+    dcterms:title "Vision 2030 for Star TOML" ;
+    dcterms:description "Doctrine defining star-toml as Root(O*_config), the first admissibility layer for configuration." .
+
+<doc/jira-st-101-st-110>
+    a prov:Entity ;
+    dcterms:title "Jira Board for Star TOML v26.6.28" ;
+    dcterms:description "Formal tickets ST-101 through ST-110 covering typestate lifecycle, source/layer/env bounds, validation/path/rewrite/witness bounds, LSP, and verification ladder." .
+
+#################################################################
+# Concept Scheme
+#################################################################
+
+<scheme/star-toml-brce>
+    a skos:ConceptScheme ;
+    dcterms:title "star-toml BRCE Concept Scheme" ;
+    dcterms:description "Concept scheme for bounded config admission, lifecycle events, counterexamples, witnesses, reports, and OCEL history." ;
+    skos:hasTopConcept
+        <concept/BRCE>,
+        <concept/ConfigAdmission>,
+        <concept/ConfigLifecycle>,
+        <concept/ConfigBounds>,
+        <concept/ConfigArtifacts>,
+        <concept/CounterexampleSet>,
+        <concept/WitnessSet> .
+
+<concept/BRCE>
+    a skos:Concept ;
+    skos:prefLabel "Bounded Receipted Chatman Equation" ;
+    skos:definition "A standing calculus where an artifact gains standing only through bounded observation, lawful manufacturing, witnesses, replay, deterministic transformation, and explicit counterexample absence." ;
+    skos:topConceptOf <scheme/star-toml-brce> ;
+    skos:related <equation/chatman>, <concept/BoundedStanding>, <concept/ConfigAdmission> .
+
+<equation/chatman>
+    a skos:Concept ;
+    skos:prefLabel "A = μ(O*)" ;
+    skos:definition "The Chatman Equation: artifact A is the lawful manufacturing projection μ of admitted observation O*." ;
+    skos:related <concept/RawObservation>, <concept/AdmittedObservation>, <concept/LawfulManufacturing>, <concept/StandingArtifact> .
+
+<concept/RawObservation>
+    a skos:Concept ;
+    skos:prefLabel "Raw Observation O" ;
+    skos:definition "Unadmitted observation. For star-toml, this includes raw TOML, sources, layers, env, schema, validation rules, path policy, and rewrite policy." .
+
+<concept/AdmittedObservation>
+    a skos:Concept ;
+    skos:prefLabel "Admitted Observation O*" ;
+    skos:definition "Bounded, validated, witnessed observation admitted only inside an explicit bound B." .
+
+<concept/LawfulManufacturing>
+    a skos:Concept ;
+    skos:prefLabel "Lawful Manufacturing μ" ;
+    skos:definition "Deterministic transformation from admitted observation to artifact with standing." .
+
+<concept/StandingArtifact>
+    a skos:Concept ;
+    skos:prefLabel "Artifact With Standing A" ;
+    skos:definition "An output artifact whose standing is supported by bounds, witnesses, lifecycle validity, replay, and failset absence." .
+
+<concept/BoundedStanding>
+    a skos:Concept ;
+    skos:prefLabel "Bounded Standing" ;
+    skos:definition "Bound-relative admissibility. Not Boolean truth, not test success, and not prose confidence." .
+
+<concept/ConfigAdmission>
+    a skos:Concept ;
+    skos:prefLabel "Config Admission" ;
+    skos:definition "Transformation of raw config observations into bounded, typed, validated, path-safe, deterministic, witnessed config state." ;
+    skos:topConceptOf <scheme/star-toml-brce> ;
+    skos:related <artifact/ValidatedConfig>, <artifact/ConfigWitness>, <concept/ConfigLifecycle> .
+
+#################################################################
+# Core Law
+#################################################################
+
+<law/no-project-law-without-admitted-config>
+    a skos:Concept, odrl:Policy ;
+    skos:prefLabel "No project law without admitted config" ;
+    skos:definition "A project cannot treat configuration as project law until star-toml has produced O*_config within B_config." ;
+    skos:related <concept/ConfigAdmission>, <state/OStarConfig> .
+
+<law/no-artifact-standing-without-bounded-witnessed-observation>
+    a skos:Concept, odrl:Policy ;
+    skos:prefLabel "No artifact standing without bounded witnessed observation" ;
+    skos:definition "BRCE root law: no artifact has standing without bounded observation, witness completeness, deterministic replay, and failset zero." ;
+    skos:related <concept/BRCE>, <artifact/ConfigWitness> .
+
+<law/prose-does-not-entail-standing>
+    a skos:Concept ;
+    skos:prefLabel "Σ_prose ⊬ q" ;
+    skos:definition "Prose claims do not entail standing. q requires bounds, detectors, witnesses, lifecycle validity, and replay." .
+
+#################################################################
+# star-toml Identity
+#################################################################
+
+<project/star-toml>
+    a prov:Entity, dcat:SoftwareApplication ;
+    dcterms:title "star-toml" ;
+    dcterms:description "Vision 2030 config admission substrate. Converts raw TOML/config observations into bounded config standing surfaces." ;
+    dcterms:hasVersion "26.6.28" ;
+    prov:wasInfluencedBy <concept/BRCE>, <law/no-project-law-without-admitted-config> .
+
+#################################################################
+# Bound B_config
+#################################################################
+
+<concept/ConfigBounds>
+    a skos:Concept ;
+    skos:prefLabel "B_config" ;
+    skos:definition "The explicit config admission bound: Sources, LayerOrder, EnvPolicy, TypeSchema, ValidationRules, PathPolicy, RewritePolicy, WitnessPolicy." ;
+    skos:topConceptOf <scheme/star-toml-brce> ;
+    skos:narrower
+        <bound/Sources>,
+        <bound/LayerOrder>,
+        <bound/EnvPolicy>,
+        <bound/TypeSchema>,
+        <bound/ValidationRules>,
+        <bound/PathPolicy>,
+        <bound/RewritePolicy>,
+        <bound/WitnessPolicy> .
+
+<bound/Sources>
+    a skos:Concept ;
+    skos:prefLabel "Sources" ;
+    skos:definition "Every config source must be explicit, labeled, required or optional, found or missing, digestible, and reported." .
+
+<bound/LayerOrder>
+    a skos:Concept ;
+    skos:prefLabel "LayerOrder" ;
+    skos:definition "Merge order is deterministic: defaults < files < env." .
+
+<bound/EnvPolicy>
+    a skos:Concept ;
+    skos:prefLabel "EnvPolicy" ;
+    skos:definition "Environment overrides are admitted only when prefixed, mapped, coerced, and reported." .
+
+<bound/TypeSchema>
+    a skos:Concept ;
+    skos:prefLabel "TypeSchema" ;
+    skos:definition "Trusted config must deserialize into explicit typed structures. Unknown fields fail in trusted mode." .
+
+<bound/ValidationRules>
+    a skos:Concept ;
+    skos:prefLabel "ValidationRules" ;
+    skos:definition "Semantic validation rules run after parse/deserialization and produce path-precise errors." .
+
+<bound/PathPolicy>
+    a skos:Concept ;
+    skos:prefLabel "PathPolicy" ;
+    skos:definition "Paths are authority-bearing surfaces; traversal, null bytes, source escapes, and forbidden absolutes are rejected." .
+
+<bound/RewritePolicy>
+    a skos:Concept ;
+    skos:prefLabel "RewritePolicy" ;
+    skos:definition "Canonical save is deterministic machine TOML. Comment preservation is not claimed unless proven." .
+
+<bound/WitnessPolicy>
+    a skos:Concept ;
+    skos:prefLabel "WitnessPolicy" ;
+    skos:definition "ConfigWitness must cover B_config, Sources, Layers, Env, Validation, and CanonicalOutput." .
+
+#################################################################
+# Observations and Admission
+#################################################################
+
+<state/OConfig>
+    a prov:Entity ;
+    skos:prefLabel "O_config" ;
+    dcterms:description "Raw TOML, config sources, layer declarations, env candidates, schema, validation rules, path policy, and rewrite policy." ;
+    prov:wasInfluencedBy <bound/Sources>, <bound/LayerOrder>, <bound/EnvPolicy>, <bound/TypeSchema>, <bound/ValidationRules>, <bound/PathPolicy>, <bound/RewritePolicy> .
+
+<state/OStarConfig>
+    a prov:Entity ;
+    skos:prefLabel "O*_config" ;
+    dcterms:description "Admitted config observation produced by Admit_star-toml(O_config, B_config)." ;
+    prov:wasDerivedFrom <state/OConfig> ;
+    prov:wasGeneratedBy <activity/AdmitStarToml> .
+
+<activity/AdmitStarToml>
+    a prov:Activity ;
+    dcterms:title "Admit_star-toml" ;
+    dcterms:description "Admission activity transforming O_config within B_config into O*_config." ;
+    prov:used <state/OConfig>, <concept/ConfigBounds>, <concept/CounterexampleSet>, <concept/WitnessSet> ;
+    prov:generated <state/OStarConfig> .
+
+<concept/qConfig>
+    a skos:Concept ;
+    skos:prefLabel "q_config" ;
+    skos:definition "Bounded admissibility bit. q_config = 1 iff failset cardinality is zero, required witnesses exist, lifecycle edges are lawful, and replay/determinism hold inside B_config." ;
+    skos:related <concept/BoundedStanding>, <artifact/ConfigWitness> .
+
+#################################################################
+# Lifecycle Graph
+#################################################################
+
+<concept/ConfigLifecycle>
+    a skos:Concept ;
+    skos:prefLabel "Config Lifecycle" ;
+    skos:definition "Ordered graph of config admission states: Raw → BoundedSources → Merged → EnvResolved → Deserialized<T> → Validated<T> → Frozen<T> → CanonicalSaved → Witnessed." ;
+    skos:topConceptOf <scheme/star-toml-brce> .
+
+<state/Raw>
+    a prov:Entity ;
+    skos:prefLabel "Raw" ;
+    dcterms:description "Raw config state. Not trusted and not admitted." .
+
+<state/BoundedSources>
+    a prov:Entity ;
+    skos:prefLabel "BoundedSources" ;
+    dcterms:description "All config sources are explicit, registered, required/optional, found/missing, digestible, and reportable." ;
+    prov:wasDerivedFrom <state/Raw> .
+
+<state/Merged>
+    a prov:Entity ;
+    skos:prefLabel "Merged" ;
+    dcterms:description "Layered TOML value after deterministic merge." ;
+    prov:wasDerivedFrom <state/BoundedSources> .
+
+<state/EnvResolved>
+    a prov:Entity ;
+    skos:prefLabel "EnvResolved" ;
+    dcterms:description "Merged config after explicit env override resolution." ;
+    prov:wasDerivedFrom <state/Merged> .
+
+<state/Deserialized>
+    a prov:Entity ;
+    skos:prefLabel "Deserialized<T>" ;
+    dcterms:description "Typed config value after deserialization. Still not trusted or admitted until validation runs." ;
+    prov:wasDerivedFrom <state/EnvResolved> .
+
+<state/Validated>
+    a prov:Entity ;
+    skos:prefLabel "Validated<T>" ;
+    dcterms:description "Deserialized config after semantic validation. Still not fully admitted until frozen, canonicalized, and witnessed." ;
+    prov:wasDerivedFrom <state/Deserialized> .
+
+<state/Frozen>
+    a prov:Entity ;
+    skos:prefLabel "Frozen<T>" ;
+    dcterms:description "Terminal pre-admission state for the early implementation slice." ;
+    prov:wasDerivedFrom <state/Validated> .
+
+<state/CanonicalSaved>
+    a prov:Entity ;
+    skos:prefLabel "CanonicalSaved" ;
+    dcterms:description "Deterministic machine TOML output produced from validated/frozen config." ;
+    prov:wasDerivedFrom <state/Frozen> .
+
+<state/Witnessed>
+    a prov:Entity ;
+    skos:prefLabel "Witnessed" ;
+    dcterms:description "State where ConfigWitness exists and can be replayed." ;
+    prov:wasDerivedFrom <state/CanonicalSaved> .
+
+<activity/BoundSources>
+    a prov:Activity ;
+    dcterms:title "BoundSources" ;
+    prov:used <state/Raw>, <bound/Sources> ;
+    prov:generated <state/BoundedSources> .
+
+<activity/MergeLayers>
+    a prov:Activity ;
+    dcterms:title "MergeLayers" ;
+    prov:used <state/BoundedSources>, <bound/LayerOrder> ;
+    prov:generated <state/Merged> .
+
+<activity/ResolveEnv>
+    a prov:Activity ;
+    dcterms:title "ResolveEnv" ;
+    prov:used <state/Merged>, <bound/EnvPolicy> ;
+    prov:generated <state/EnvResolved> .
+
+<activity/DeserializeTyped>
+    a prov:Activity ;
+    dcterms:title "DeserializeTyped" ;
+    prov:used <state/EnvResolved>, <bound/TypeSchema> ;
+    prov:generated <state/Deserialized> .
+
+<activity/ValidateConfig>
+    a prov:Activity ;
+    dcterms:title "ValidateConfig" ;
+    prov:used <state/Deserialized>, <bound/ValidationRules>, <bound/PathPolicy> ;
+    prov:generated <state/Validated> .
+
+<activity/FreezeConfig>
+    a prov:Activity ;
+    dcterms:title "FreezeConfig" ;
+    prov:used <state/Validated> ;
+    prov:generated <state/Frozen> .
+
+<activity/SaveCanonical>
+    a prov:Activity ;
+    dcterms:title "SaveCanonical" ;
+    prov:used <state/Frozen>, <bound/RewritePolicy> ;
+    prov:generated <state/CanonicalSaved> .
+
+<activity/GenerateWitness>
+    a prov:Activity ;
+    dcterms:title "GenerateWitness" ;
+    prov:used <state/CanonicalSaved>, <bound/WitnessPolicy>, <concept/CounterexampleSet> ;
+    prov:generated <state/Witnessed>, <artifact/ConfigWitness> .
+
+#################################################################
+# Artifacts
+#################################################################
+
+<concept/ConfigArtifacts>
+    a skos:Concept ;
+    skos:prefLabel "Config Artifacts" ;
+    skos:definition "Artifacts produced by star-toml lawful manufacturing." ;
+    skos:topConceptOf <scheme/star-toml-brce> ;
+    skos:narrower
+        <artifact/ValidatedConfig>,
+        <artifact/ValidationReport>,
+        <artifact/CanonicalConfig>,
+        <artifact/ConfigWitness>,
+        <artifact/AdmittedConfig> .
+
+<artifact/ValidatedConfig>
+    a prov:Entity ;
+    skos:prefLabel "ValidatedConfig" ;
+    dcterms:description "A typed config value after semantic validation." ;
+    prov:wasGeneratedBy <activity/ValidateConfig> .
+
+<artifact/ValidationReport>
+    a prov:Entity ;
+    skos:prefLabel "ValidationReport" ;
+    dcterms:description "Path-precise report of validation checks, errors, severities, repair hints, and fitness." ;
+    prov:wasGeneratedBy <activity/ValidateConfig> .
+
+<artifact/CanonicalConfig>
+    a prov:Entity ;
+    skos:prefLabel "CanonicalConfig" ;
+    dcterms:description "Deterministic machine TOML representation. Does not imply comment preservation." ;
+    prov:wasGeneratedBy <activity/SaveCanonical> .
+
+<artifact/ConfigWitness>
+    a prov:Entity ;
+    skos:prefLabel "ConfigWitness" ;
+    dcterms:description "Receipt-ready evidence covering B_config, Sources, Layers, Env, Validation, and CanonicalOutput." ;
+    prov:wasGeneratedBy <activity/GenerateWitness> .
+
+<artifact/AdmittedConfig>
+    a prov:Entity ;
+    skos:prefLabel "AdmittedConfig<T>" ;
+    dcterms:description "Terminal admitted artifact. Must not be constructible before ConfigWitness and q_config exist." ;
+    prov:wasDerivedFrom <state/Witnessed> .
+
+#################################################################
+# Reports
+#################################################################
+
+<artifact/SourceReport>
+    a prov:Entity ;
+    skos:prefLabel "SourceReport" ;
+    dcterms:description "Report of all accessed/admitted config sources, required or optional status, found/missing state, source paths, parents, roots, digests, and sizes." ;
+    prov:wasGeneratedBy <activity/BoundSources> .
+
+<artifact/LayerReport>
+    a prov:Entity ;
+    skos:prefLabel "LayerReport" ;
+    dcterms:description "Report of layer ordering, layer digests, priorities, and final field winning-layer provenance." ;
+    prov:wasGeneratedBy <activity/MergeLayers> .
+
+<artifact/EnvOverrideReport>
+    a prov:Entity ;
+    skos:prefLabel "EnvOverrideReport" ;
+    dcterms:description "Report of admitted env overrides: raw key, configured prefix, mapped path, coerced type, value digest, accepted flag, and rejection code." ;
+    prov:wasGeneratedBy <activity/ResolveEnv> .
+
+<artifact/PathWitness>
+    a prov:Entity ;
+    skos:prefLabel "PathWitness" ;
+    dcterms:description "Evidence that a path-bearing config field was checked against a path policy using raw path, source path, resolved path, policy, accepted flag, and rejection code." ;
+    prov:wasGeneratedBy <activity/ValidateConfig> .
+
+#################################################################
+# Merge Laws
+#################################################################
+
+<law/merge-table-recursive>
+    a skos:Concept ;
+    skos:prefLabel "table + table = recursive merge" ;
+    skos:definition "When both lower and higher priority values are tables, merge recursively by key." ;
+    skos:related <activity/MergeLayers> .
+
+<law/merge-array-replace>
+    a skos:Concept ;
+    skos:prefLabel "array + array = higher-priority array replaces" ;
+    skos:definition "Arrays do not merge elementwise; the higher-priority array replaces the lower-priority array." ;
+    skos:related <activity/MergeLayers> .
+
+<law/merge-scalar-replace>
+    a skos:Concept ;
+    skos:prefLabel "scalar + scalar = higher-priority scalar replaces" ;
+    skos:definition "Higher-priority scalar replaces lower-priority scalar." ;
+    skos:related <activity/MergeLayers> .
+
+<law/layer-order-defaults-files-env>
+    a skos:Concept ;
+    skos:prefLabel "defaults < files < env" ;
+    skos:definition "Deterministic layer priority order." ;
+    skos:related <bound/LayerOrder>, <activity/MergeLayers> .
+
+<law/final-field-has-winning-layer>
+    a skos:Concept ;
+    skos:prefLabel "Every final field has a winning layer" ;
+    skos:definition "Every final config field must trace to its winning source layer; otherwise conservation fails." ;
+    skos:related <artifact/LayerReport> .
+
+#################################################################
+# Witness Set
+#################################################################
+
+<concept/WitnessSet>
+    a skos:Concept ;
+    skos:prefLabel "W_config" ;
+    skos:definition "Required witness components: B_config, Sources, Layers, Env, Validation, CanonicalOutput, merged_value_digest, typed_config_digest, canonical_output_digest, q_config." ;
+    skos:topConceptOf <scheme/star-toml-brce> ;
+    skos:narrower
+        <witness/BConfigDigest>,
+        <witness/SourcesDigest>,
+        <witness/LayersDigest>,
+        <witness/EnvDigest>,
+        <witness/ValidationDigest>,
+        <witness/CanonicalOutputDigest>,
+        <witness/MergedValueDigest>,
+        <witness/TypedConfigDigest>,
+        <witness/QConfig> .
+
+<witness/BConfigDigest> a skos:Concept ; skos:prefLabel "b_config_digest" .
+<witness/SourcesDigest> a skos:Concept ; skos:prefLabel "sources_digest" .
+<witness/LayersDigest> a skos:Concept ; skos:prefLabel "layers_digest" .
+<witness/EnvDigest> a skos:Concept ; skos:prefLabel "env_digest" .
+<witness/ValidationDigest> a skos:Concept ; skos:prefLabel "validation_digest" .
+<witness/CanonicalOutputDigest> a skos:Concept ; skos:prefLabel "canonical_output_digest" .
+<witness/MergedValueDigest> a skos:Concept ; skos:prefLabel "merged_value_digest" .
+<witness/TypedConfigDigest> a skos:Concept ; skos:prefLabel "typed_config_digest" .
+<witness/QConfig> a skos:Concept ; skos:prefLabel "q_config" .
+
+#################################################################
+# SHACL Shapes
+#################################################################
+
+<shape/ValidationErrorShape>
+    a sh:NodeShape ;
+    sh:name "ValidationErrorShape" ;
+    sh:description "Validation errors must include loc, code, severity, message, and repair hint." ;
+    sh:targetNode <artifact/ValidationReport> ;
+    sh:property [
+        sh:path dcterms:description ;
+        sh:minCount 1 ;
+        sh:message "Validation report must describe validation errors and repair hints." ;
+    ] .
+
+<shape/ConfigWitnessShape>
+    a sh:NodeShape ;
+    sh:name "ConfigWitnessShape" ;
+    sh:description "ConfigWitness must cover all required witness components." ;
+    sh:targetNode <artifact/ConfigWitness> ;
+    sh:property [
+        sh:path prov:wasGeneratedBy ;
+        sh:hasValue <activity/GenerateWitness> ;
+        sh:message "ConfigWitness must be generated by GenerateWitness." ;
+    ] ;
+    sh:property [
+        sh:path dcterms:description ;
+        sh:minCount 1 ;
+        sh:message "ConfigWitness must describe coverage of B_config, Sources, Layers, Env, Validation, and CanonicalOutput." ;
+    ] .
+
+<shape/AdmittedConfigDeferredShape>
+    a sh:NodeShape ;
+    sh:name "AdmittedConfigDeferredShape" ;
+    sh:description "AdmittedConfig must be derived from Witnessed state, not pre-admission states." ;
+    sh:targetNode <artifact/AdmittedConfig> ;
+    sh:property [
+        sh:path prov:wasDerivedFrom ;
+        sh:hasValue <state/Witnessed> ;
+        sh:message "AdmittedConfig must derive from Witnessed state." ;
+    ] .
+
+#################################################################
+# Status Snapshots
+#################################################################
+
+<status/brce-admission-deferred>
+    a prov:Entity ;
+    dcterms:title "BRCE Admission Deferred" ;
+    dcterms:description "AdmittedConfig<T>, ConfigWitness, and q_config are deferred until witness and standing layers exist." ;
+    dcterms:subject <artifact/AdmittedConfig>, <artifact/ConfigWitness>, <concept/qConfig> .
+
+#################################################################
+# Final Compression
+#################################################################
+
+<compression/star-toml>
+    a skos:Concept ;
+    skos:prefLabel "star-toml final compression" ;
+    skos:definition "star-toml transforms raw configuration from syntax parsing into admitted law: bounded sources, deterministic layers, explicit env overrides, typed validation, path safety, canonical rewrite, witness coverage, q_config, and OCEL lifecycle history. OCEL records process intelligence; it does not grant standing." ;
+    skos:related <law/no-project-law-without-admitted-config>, <concept/BRCE> .

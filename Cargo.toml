@@ -18,6 +18,8 @@ serde = { version = "1.0", features = ["derive"] }
 toml = { version = "1.1.0", features = ["preserve_order"] }
 thiserror = "2.0"
 star-toml-derive = { version = "26.6.27", path = "star-toml-derive" }
+blake3 = "1"
+wasm4pm-compat = { version = "26.6", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -40,6 +42,7 @@ expect_used = "warn"
 
 [features]
 e2e_tests = []
+wasm4pm-compat = ["dep:wasm4pm-compat"]
 
 [profile.release]
 lto = true
