@@ -399,24 +399,31 @@ fn run_release_checks() -> Vec<Check> {
     }));
 
     // 15. cargo_package_without_clean_git
+    //
+    // DfCM invariant: a release-standing gate cannot pass while the working
+    // tree is dirty.  Any modified, staged, or untracked file is a FAIL.
+    // There are no allowlisted exceptions — a clean release requires a clean
+    // tree, full stop.
     results.push(check!("cargo_package_without_clean_git", {
         let mut ok = true;
-        let mut note = "Verified: git status is clean.".to_string();
-        
-        if let Ok(output) = Command::new("git").args(&["status", "--porcelain"]).output() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let mut lines = Vec::new();
-            for line in stdout.lines() {
-                let trimmed = line.trim();
-                if !trimmed.contains("docs/jira/v26.6.29") 
-                   && !trimmed.contains("docs/LSP.md") 
-                   && !trimmed.contains("star-toml-lsp/README.md")
-                   && !trimmed.contains("src/bin/release_verifier.rs") {
-                    lines.push(trimmed);
-                }
+        let mut note = "Verified: git working tree is clean.".to_string();
+
+        match Command::new("git").args(&["status", "--porcelain"]).output() {
+            Err(e) => {
+                ok = false;
+                note = format!("Could not run git status: {}", e);
             }
-            if !lines.is_empty() {
-                note = format!("Dirty git files present: {:?}", lines);
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let dirty: Vec<&str> = stdout.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+                if !dirty.is_empty() {
+                    ok = false;
+                    note = format!(
+                        "Working tree is not clean — {} file(s) dirty/untracked: {:?}",
+                        dirty.len(),
+                        dirty
+                    );
+                }
             }
         }
         (ok, note)
