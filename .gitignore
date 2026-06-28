@@ -6,3 +6,12 @@
 *.bak
 VERIFIER_REPORT.md
 .star-toml/
+
+# LaTeX build artifacts
+*.aux
+*.lof
+*.log
+*.lot
+*.out
+*.pdf
+*.toc

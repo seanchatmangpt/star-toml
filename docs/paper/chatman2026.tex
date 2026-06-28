@@ -3,22 +3,19 @@
 %  A Mathematical Foundation for Bounded Admission
 %  in Human and Machine Systems
 %
-%  Sean Chatman
-%  2026
+%  Sean Chatman — 2026
 % ============================================================
 
-\documentclass[12pt, letterpaper]{article}
+\documentclass[12pt, letterpaper]{report}
 
 % ---- Geometry -----------------------------------------------
-\usepackage[
-  top=1.25in, bottom=1.25in,
-  left=1.25in, right=1.25in
-]{geometry}
+\usepackage[top=1.25in, bottom=1.25in, left=1.4in, right=1.2in]{geometry}
 
 % ---- Math ---------------------------------------------------
 \usepackage{amsmath, amsthm, amssymb, amsfonts}
 \usepackage{mathtools}
 \usepackage{bm}
+\usepackage{stmaryrd}
 
 % ---- Typography ---------------------------------------------
 \usepackage{microtype}
@@ -26,37 +23,45 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{setspace}
-\onehalfspacing
+\usepackage{parskip}
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
 
 % ---- Graphics and Tables ------------------------------------
 \usepackage{booktabs}
 \usepackage{array}
+\usepackage{longtable}
+\usepackage{multirow}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, calc}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 % ---- References and Links -----------------------------------
+\usepackage[hyphens]{url}
 \usepackage{hyperref}
 \hypersetup{
-  colorlinks=true,
-  linkcolor=black,
-  citecolor=black,
-  urlcolor=black
+  colorlinks=true, linkcolor=black, citecolor=black, urlcolor=black,
+  pdftitle={Configuration as Operational Law}, pdfauthor={Sean Chatman},
 }
 
 % ---- Listings -----------------------------------------------
 \usepackage{listings}
+\usepackage{xcolor}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.4}
 \lstset{
-  basicstyle=\ttfamily\small,
-  breaklines=true,
-  frame=single,
-  framesep=4pt,
-  xleftmargin=12pt,
-  xrightmargin=12pt,
+  basicstyle=\ttfamily\footnotesize, breaklines=true,
+  frame=single, framesep=4pt, xleftmargin=14pt, xrightmargin=14pt,
+  numbers=left, numberstyle=\tiny\color{gray},
 }
+
+% ---- Spacing ------------------------------------------------
+\onehalfspacing
 
 % ---- Theorem Environments -----------------------------------
 \theoremstyle{plain}
-\newtheorem{theorem}{Theorem}[section]
+\newtheorem{theorem}{Theorem}[chapter]
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
@@ -65,43 +70,42 @@
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{example}[theorem]{Example}
 \newtheorem{axiom}[theorem]{Axiom}
+\newtheorem{construction}[theorem]{Construction}
 
 \theoremstyle{remark}
 \newtheorem{remark}[theorem]{Remark}
+\newtheorem{notation}[theorem]{Notation}
 
 % ---- Operators ----------------------------------------------
-\DeclareMathOperator{\Ker}{Ker}
-\DeclareMathOperator{\Img}{Im}
-\DeclareMathOperator{\id}{id}
-\DeclareMathOperator{\dom}{dom}
-\DeclareMathOperator{\cod}{cod}
-\DeclareMathOperator{\rank}{rank}
-\DeclareMathOperator{\tr}{tr}
-\DeclareMathOperator{\vol}{vol}
 \DeclareMathOperator{\conv}{conv}
-\DeclareMathOperator{\dist}{dist}
+\DeclareMathOperator{\dom}{dom}
+\DeclareMathOperator{\id}{id}
+\DeclareMathOperator{\supp}{supp}
 
 % ---- Custom Notation ----------------------------------------
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\Z}{\mathbb{Z}}
-\newcommand{\Q}{\mathbb{Q}}
-\newcommand{\B}{\mathbb{B}}   % Boolean
-\newcommand{\C}{\mathcal{C}}  % Configuration space
-\newcommand{\A}{\mathcal{A}}  % Admitted set
-\newcommand{\F}{\mathcal{F}}  % Field
-\newcommand{\Lc}{\mathcal{L}} % Layer lattice
-\newcommand{\W}{\mathcal{W}}  % Witness algebra
-\newcommand{\ce}{\mathcal{E}} % Counterexample set
+\newcommand{\BB}{\mathbb{B}}
+\newcommand{\CC}{\mathcal{C}}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\FF}{\mathcal{F}}
+\newcommand{\Lc}{\mathcal{L}}
+\newcommand{\W}{\mathcal{W}}
+\newcommand{\EE}{\mathcal{E}}
+\newcommand{\PP}{\mathcal{P}}
+\newcommand{\NN}{\mathcal{N}}
+\newcommand{\TT}{\mathcal{T}}
+\newcommand{\VV}{\mathcal{V}}
 \newcommand{\qc}{q_{\mathrm{config}}}
-\newcommand{\Phi}{\Phi}
-\newcommand{\pword}[1]{\textsc{#1}}
 \newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
 \newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
-\newcommand{\inner}[2]{\left\langle #1,\, #2 \right\rangle}
-\newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
-\newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
-\newcommand{\bigland}{\bigwedge}
+
+% ---- Chapter Style ------------------------------------------
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\Large\bfseries}{\chaptertitlename\ \thechapter}{16pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-20pt}{40pt}
 
 % ============================================================
 \begin{document}
@@ -109,60 +113,91 @@
 % ---- Title Page --------------------------------------------
 \begin{titlepage}
 \centering
-\vspace*{2cm}
-
-{\LARGE\bfseries Configuration as Operational Law}\\[0.6em]
-{\large A Mathematical Foundation for Bounded Admission\\
+\vspace*{1.5cm}
+{\Huge\bfseries Configuration as Operational Law}\\[1em]
+{\LARGE A Mathematical Foundation for Bounded Admission\\[0.3em]
 in Human and Machine Systems}
-
-\vspace{2.5cm}
-
-{\large Sean Chatman}\\[0.4em]
-{\normalsize Pasadena, California}\\[0.2em]
-{\normalsize \texttt{sean@chatmangpt.com}}
-
-\vspace{2cm}
-
-{\normalsize June 2026}
-
 \vspace{3cm}
 
+\begin{center}
+{\large by}\\[0.8em]
+{\LARGE\bfseries Sean Chatman}\\[0.4em]
+{\normalsize Pasadena, California}\\[0.2em]
+{\normalsize \texttt{xpointsh@gmail.com}}
+\end{center}
+
+\vspace{3.5cm}
+{\normalsize A Thesis in Partial Fulfillment of the Requirements}\\[0.2em]
+{\normalsize for the Degree of Doctor of Philosophy}\\[0.6em]
+{\normalsize June 2026}
+
+\vfill
 \begin{abstract}
 \noindent
 Configuration is the first operational law of any system that acts on instructions.
 Every field value is a bounded assertion; every merge is a structured judgment;
-every deployment is an execution of law that either has standing or does not.
-This paper introduces \emph{config admission} as a formal discipline grounded
-in set theory, lattice geometry, abstract algebra, real analysis, and
-measure-theoretic process intelligence.
-The central standing criterion---the \emph{Bounded Receipted Chatman Equation}---is
-defined as a conjunction of four checkable predicates over a configuration
-space $\C$, and proved to be sound, monotone, and computable.
-A typestate admission pipeline is characterized as a monoidal category
-whose terminal object is the cryptographically witnessed admitted artifact.
-The derivative of standing with respect to configuration perturbations is
-derived to support sensitivity analysis and authoring-time feedback.
-Design for Combinatorial Maximalism (DfCM) is formalized as a
-measure over the variant space, and OCEL telemetry is characterized as a
-filtered probability space that captures process history without constituting
-standing authority.
-The paper closes with a generalization: bounded admission is the correct
-model for any artifact---configuration, agent output, build plan,
-deployment manifest, or policy file---that instructs a machine or
-institution to act.
-The future is not autonomous generation.
-The future is bounded admission of generated artifacts.
-\end{abstract}
+every deployment executes law that either has standing or does not.
+This dissertation introduces \emph{config admission} as a formal discipline grounded
+in set theory, convex geometry, abstract algebra, real analysis, process algebra,
+and measure-theoretic process intelligence.
 
-\vfill
+The central contribution is the \emph{Bounded Receipted Chatman Equation} (BRCE):
+a standing criterion defined as a conjunction of four decidable predicates over
+a configuration space $\CC$. We prove the BRCE is sound, monotone, computable in
+polynomial time, and strictly stronger than syntactic correctness.
+
+The admission pipeline is characterized as a monoidal category $\mathbf{Adm}$
+whose unique terminal object---the cryptographically witnessed
+\texttt{AdmittedConfig}$\langle T\rangle$---is constructible only by traversing
+the full pipeline, making standing unforgeable.
+
+Drawing on process mining in the tradition of van der Aalst,
+we formalize the Object-Centric Event Log (OCEL) as a filtered probability space
+that captures process history without constituting standing authority.
+Design for Combinatorial Maximalism (DfCM) is introduced as a measure-theoretic
+framework for exhaustive variant testing.
+A differential theory of standing sensitivity---the standing gradient
+$\nabla\tilde{q}$---is derived and proved to converge to the feasible region,
+grounding authoring-time repair hints in rigorous calculus.
+
+The dissertation closes with a generalization: bounded admission is the correct
+model for any artifact---configuration, agent output, build plan, deployment
+manifest, policy file, or care plan---that instructs a machine or institution to act.
+The phase change is from \emph{assumed law} to \emph{admitted law}.
+\end{abstract}
 \end{titlepage}
 
-% ---- Table of Contents -------------------------------------
+% ---- Front Matter ------------------------------------------
+\pagenumbering{roman}
+
+\chapter*{Acknowledgments}
+\addcontentsline{toc}{chapter}{Acknowledgments}
+
+This dissertation owes its mathematical foundations to a lineage of rigorous
+thinkers who refused to let informality substitute for precision.
+The process mining framework of Wil van der Aalst showed that operational history
+could be treated as a first-class mathematical object.
+The algebraic topology of Atiyah reminded us that the right structure theorem
+makes hard problems obvious. The category theory of Mac Lane gave us a language
+for talking about composition itself.
+
+The \texttt{star-toml} implementation is built in Rust, the first programming
+language to make the monoidal category $\mathbf{Adm}$ mechanically verifiable
+at compile time, not merely asserted in prose.
+
+This work is dedicated to every operator who has debugged a production outage
+caused by a configuration file that parsed correctly but said the wrong thing.
+
 \tableofcontents
+\listoffigures
+\listoftables
 \newpage
+\pagenumbering{arabic}
 
 % ============================================================
-\section{Prologue: The Hidden Operating System}
+\chapter{Prologue: The Hidden Operating System}
+
+\section{Configuration is Law}
 
 Every system that acts on instructions has a configuration layer.
 In software, this layer appears as TOML, YAML, JSON, environment variables,
@@ -170,986 +205,1346 @@ feature flags, infrastructure declarations, and runtime profiles.
 In human institutions, it appears as forms, rubrics, schedules,
 eligibility rules, care plans, work orders, and operating procedures.
 In machine learning systems, it appears as hyperparameter files,
-agent instructions, prompt templates, and tool registries.
+agent system prompts, sampling configurations, and tool permission sets.
 
-These are all the same class of object: a bounded assertion layer
+These are all the same class of object: a \emph{bounded assertion layer}
 that governs what may happen before execution begins.
 
-For decades, this layer has been treated as text---read by humans,
-modified by convention, certified by prose.
-The consequences are well-documented.
-Systems fail not because they lack instructions,
-but because their instructions are implicit, stale, conflicting, unbounded,
-unwitnessed, or prose-certified.
-
 \begin{definition}[Operational Law]
+\label{def:operational-law}
 An \emph{operational law} for a system $S$ is a structured artifact
-$\ell \in \C$ drawn from a configuration space $\C$,
-together with a predicate $\qc : \C \to \B$ such that
+$\ell \in \CC$, drawn from a configuration space $\CC$,
+together with a predicate $\qc : \CC \to \BB$ such that
 $S$ may execute under $\ell$ only if $\qc(\ell) = 1$.
+The standing bit $\qc(\ell)$ is the minimal gate between instruction and action.
 \end{definition}
 
-This paper constructs $\qc$ from first principles.
+For decades, the operational law of most systems has been treated as text---read
+by humans, modified by convention, certified by prose approval.
+The consequences are visible in any incident retrospective:
+systems fail not because they lack instructions, but because their instructions
+are implicit, stale, conflicting, unbounded, unwitnessed, or certified by a
+comment in a pull request.
 
-% ============================================================
-\section{Configuration Space: Geometry and Topology}
+\section{The Failure of Prose Certification}
 
-\subsection{The Configuration Space}
-
-Let $\F$ be a value domain---a structured collection of types including
-booleans, integers, reals, strings, enumerations, structured records,
-sequences, and maps.
-A \emph{configuration space} $\C$ is a product space over a finite
-schema $\Sigma$:
-
-\begin{equation}
-  \C = \prod_{k \in \Sigma} \F_k
-\end{equation}
-
-where each $\F_k$ is the value domain of field $k$.
-Points $x \in \C$ are configurations: total assignments of values to fields.
-Partial configurations form a subspace $\C_\partial \subset \C^\bot$
-where $\bot$ denotes the undefined sentinel.
-
-\subsection{Constraint Sets and the Feasible Region}
-
-Each field $k \in \Sigma$ admits a \emph{constraint function}
-$\phi_k : \F_k \to \B$.
-The set of constraint functions induces a \emph{feasible region}:
-
-\begin{equation}
-  \A_0 = \left\{ x \in \C \;\middle|\; \forall k \in \Sigma,\; \phi_k(x_k) = 1 \right\}
-\end{equation}
-
-When each $\F_k$ carries a natural ordering (e.g., numeric ranges),
-$\A_0$ is the intersection of finitely many halfspaces and is therefore
-a convex polytope in the continuous case.
-
-\begin{proposition}[Feasibility as Intersection]
-Let $H_k = \phi_k^{-1}(1) \subseteq \F_k$ be the feasible set for field $k$.
-Then $\A_0 = \prod_{k \in \Sigma} H_k$.
-When each $H_k$ is convex, $\A_0$ is convex.
-\end{proposition}
-
-\begin{proof}
-Immediate from the definition of the product topology and the
-fact that finite intersections of convex sets are convex.
-\end{proof}
-
-\begin{definition}[Constraint Boundary]
-The \emph{constraint boundary} of $\A_0$ is
-$\partial \A_0 = \overline{\A_0} \setminus \mathrm{int}(\A_0)$.
-Points on $\partial \A_0$ satisfy all constraints with equality in at
-least one coordinate.
-They are valid but maximally constrained.
+\begin{definition}[Prose Certification]
+\emph{Prose certification} is the practice of asserting that a configuration
+is correct by human review of natural-language documentation and approval
+comments, without executing any computable predicate.
 \end{definition}
 
-\begin{remark}
-For discrete value domains (enumerations, boolean fields),
-$\A_0$ is a finite set and the geometric language of convexity
-applies via the convex hull: $\conv(\A_0) \subseteq \R^n$
-embeds $\A_0$ in a real vector space by coordinate-encoding.
-\end{remark}
-
-\subsection{The Geometry of Violation}
-
-Define the \emph{violation set}:
-\begin{equation}
-  V = \C \setminus \A_0 = \left\{ x \in \C \;\middle|\;
-  \exists k \in \Sigma,\; \phi_k(x_k) = 0 \right\}
-\end{equation}
-
-The violation set is the complement of the feasible region.
-Its geometry determines the difficulty of error correction:
-configurations near $\partial \A_0$ require small repairs;
-configurations deep in $V$ require large ones.
-
-\begin{definition}[Violation Distance]
-For $x \in V$, the \emph{violation distance} is:
-\begin{equation}
-  d(x, \A_0) = \inf_{y \in \A_0} \norm{x - y}
-\end{equation}
-For a product metric $\norm{x - y}^2 = \sum_k w_k (x_k - y_k)^2$
-with field weights $w_k > 0$, this is the weighted Euclidean distance
-to the nearest valid configuration.
-\end{definition}
-
-The violation distance is the natural quantity for authoring-time feedback:
-it tells the operator how far the current configuration is from standing.
-
-\subsection{Layer Geometry: The Merge Polytope}
-
-Modern configuration systems compose values from multiple sources
-(files, environment variables, command-line overrides) using a
-\emph{layer precedence order}.
-Let $[n] = \{1, \ldots, n\}$ index the layers in increasing precedence.
-Each layer $i$ contributes a partial configuration $x^{(i)} \in \C_\partial$.
-
-The \emph{merged configuration} under winner-takes-all precedence is:
-
-\begin{equation}
-  x^* = \bigsqcup_{i=1}^{n} x^{(i)}
-\end{equation}
-
-where $\sqcup$ denotes the \emph{precedence join}: for each field $k$,
-$x^*_k = x^{(i^*)}_k$ where $i^* = \max\{i \mid x^{(i)}_k \neq \bot\}$.
-
-\begin{definition}[Winner Map]
-The \emph{winner map} $W : \Sigma \to [n] \cup \{\bot\}$ assigns
-to each field the index of the layer whose value prevails:
-\begin{equation}
-  W(k) = \max\left\{ i \in [n] \;\middle|\; x^{(i)}_k \neq \bot \right\}
-\end{equation}
-$W(k) = \bot$ if no layer provides a value for field $k$.
-\end{definition}
-
-The winner map is the \emph{provenance certificate} for the merge.
-A merge is \emph{lawful} if and only if $W$ is computable, deterministic,
-and total over the required schema.
-
-\begin{theorem}[Merge Uniqueness]
-For a fixed layer ordering $\sigma \in S_n$ (a permutation of $[n]$),
-the merged configuration $x^*_\sigma$ is unique.
-Permuting $\sigma$ produces (in general) a different merge.
+\begin{theorem}[Prose Does Not Entail Standing]
+\label{thm:prose}
+Let $\Sigma_{\mathrm{prose}}$ be any set of natural-language assertions
+about a configuration $\ell \in \CC$. Then for any $\ell$:
+\[
+  \Sigma_{\mathrm{prose}} \not\vdash \qc(\ell) = 1
+\]
 \end{theorem}
 
 \begin{proof}
-For each $k$, $W_\sigma(k) = \max_\sigma\{i \mid x^{(i)}_k \neq \bot\}$
-is determined entirely by the ordering $\sigma$ and the support sets
-$\{i \mid x^{(i)}_k \neq \bot\}$.
-Since $\max_\sigma$ is well-defined for any total order $\sigma$,
-$x^*_\sigma$ is unique.
-Reordering $\sigma$ changes which layer wins contested fields,
-so in general $x^*_\sigma \neq x^*_{\sigma'}$ for $\sigma \neq \sigma'$.
+$\qc(\ell) = 1$ requires four decidable predicates to hold (Definition
+\ref{def:brce}): field constraint satisfaction, transform lawfulness,
+witness completeness, and counterexample absence. Each predicate is a
+computable function of $\ell$ and its processing context. Natural language
+statements are not computable functions: they describe intended behavior
+but cannot verify actual behavior. No finite set of prose statements can
+close the gap between description and verification.
+\end{proof}
+
+\section{Scope and Contributions}
+
+This dissertation makes the following contributions:
+
+\begin{enumerate}
+  \item \textbf{Configuration Geometry} (Chapter~2): configuration spaces
+        as bounded polytopes, the feasible region, violation distance,
+        and merge polytope.
+
+  \item \textbf{Admission Algebra} (Chapter~3): the monoidal category
+        $\mathbf{Adm}$, typestate pipeline, and witness group $\W$.
+
+  \item \textbf{The BRCE} (Chapter~4): formal definition, soundness,
+        monotonicity, computability, and comparison to parse correctness.
+
+  \item \textbf{Calculus of Standing} (Chapter~5): smooth surrogate
+        $\tilde{q}$, standing gradient, sensitivity concentration,
+        and repair convergence.
+
+  \item \textbf{Process Intelligence} (Chapter~6): Petri net semantics,
+        OCEL formalization, conformance checking, and DfCM measure.
+
+  \item \textbf{Implementation} (Chapter~7): the \texttt{star-toml} Rust
+        crate and LSP realization.
+
+  \item \textbf{Generalization} (Chapter~8): bounded admission for all
+        instruction-bearing artifacts and the phase change argument.
+\end{enumerate}
+
+% ============================================================
+\chapter{Configuration Geometry}
+\label{ch:geometry}
+
+\section{Foundations: Sets, Relations, and Value Domains}
+
+\begin{definition}[Value Domain]
+A \emph{value domain} $\FF$ is a set equipped with an equality relation
+$=_\FF$, a partial order $\leq_\FF$ (when ordered), and a distinguished
+element $\bot_\FF$ representing ``undefined.''
+Standard domains: $\FF_{\mathrm{bool}} = \{0,1\}$,
+$\FF_{\mathrm{int}} = \Z$, $\FF_{\mathrm{real}} = \R$,
+$\FF_{\mathrm{str}} = \Sigma^*$, $\FF_{\mathrm{enum}}(E) = E$ for finite $E$.
+\end{definition}
+
+\begin{definition}[Schema]
+\label{def:schema}
+A \emph{schema} is a finite set $\Sigma = \{k_1, \ldots, k_n\}$ of field names,
+with a function $\mathrm{type} : \Sigma \to \{\FF_1, \FF_2, \ldots\}$ assigning
+a value domain to each field, and a partition into required fields
+$\Sigma_{\mathrm{req}} \subseteq \Sigma$ and optional fields
+$\Sigma_{\mathrm{opt}} = \Sigma \setminus \Sigma_{\mathrm{req}}$.
+\end{definition}
+
+\begin{definition}[Configuration Space]
+\label{def:config-space}
+The \emph{configuration space} induced by schema $\Sigma$ is:
+\[
+  \CC_\Sigma = \prod_{k \in \Sigma} \bigl(\FF_{\mathrm{type}(k)} \cup \{\bot\}\bigr)
+\]
+The subspace of \emph{complete configurations} is:
+\[
+  \CC^{\mathrm{complete}} =
+  \bigl\{ x \in \CC_\Sigma \;\big|\; \forall k \in \Sigma_{\mathrm{req}},\; x_k \neq \bot \bigr\}
+\]
+\end{definition}
+
+\section{The Feasible Region}
+
+\begin{definition}[Field Constraint]
+\label{def:field-constraint}
+A \emph{field constraint} for field $k$ is a predicate
+$\phi_k : \FF_{\mathrm{type}(k)} \to \BB$. Common forms:
+\begin{align}
+  \phi_k^{\mathrm{range}}(v) &= [a_k \leq v \leq b_k] \\
+  \phi_k^{\mathrm{enum}}(v)  &= [v \in E_k] \\
+  \phi_k^{\mathrm{regex}}(v) &= [v \in \mathcal{L}(\rho_k)] \\
+  \phi_k^{\mathrm{path}}(v)  &= [\mathrm{safe\_path}(v)]
+\end{align}
+A \emph{schema constraint family} is $\Phi = \{\phi_k\}_{k \in \Sigma}$.
+\end{definition}
+
+\begin{definition}[Feasible Region]
+\label{def:feasible}
+The \emph{feasible region} is:
+\[
+  \A_0 = \bigl\{ x \in \CC^{\mathrm{complete}} \;\big|\;
+  \forall k \in \Sigma,\; \phi_k(x_k) = 1 \bigr\}
+\]
+\end{definition}
+
+\begin{proposition}[Convexity for Range Constraints]
+If all constraints are range constraints $[a_k, b_k] \subset \R$,
+then $\A_0 = \prod_k [a_k, b_k]$ is a convex polytope in $\R^{|\Sigma|}$.
+\end{proposition}
+
+\begin{proof}
+Each $[a_k, b_k]$ is convex. The product of convex sets is convex in the
+product topology. \qed
+\end{proof}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.0]
+  \draw[thick, gray!40, fill=gray!10] (0,0) rectangle (5,4);
+  \node[gray] at (4.5, 3.7) {$\CC$};
+  \draw[thick, darkblue, fill=blue!15] (1,0.8) rectangle (3.5,3.0);
+  \node[darkblue] at (2.25,1.9) {$\A_0$};
+  \fill[black] (2.0,2.2) circle (2pt) node[right, font=\small] {$x \in \A_0$};
+  \fill[red] (4.2,1.5) circle (2pt) node[right, font=\small] {$y \notin \A_0$};
+  \fill[orange] (3.5,1.9) circle (2pt) node[right, font=\small] {$z \in \partial\A_0$};
+  \draw[->, dashed, red!70] (4.2,1.5) -- (3.52,1.5)
+    node[midway, above, font=\scriptsize] {$d(y,\A_0)$};
+  \draw[->] (-0.1,0) -- (5.3,0);
+  \draw[->] (0,-0.1) -- (0,4.3);
+  \node[font=\small] at (2.5,-0.4) {Field $k_1$};
+  \node[rotate=90, font=\small] at (-0.5,2.0) {Field $k_2$};
+\end{tikzpicture}
+\caption{The configuration space $\CC$ (gray) and feasible region $\A_0$ (blue)
+for a two-field schema with range constraints.}
+\label{fig:feasible}
+\end{figure}
+
+\begin{definition}[Violation Distance]
+For $y \notin \A_0$, the \emph{violation distance} is
+$d(y, \A_0) = \inf_{x \in \A_0} \norm{y - x}_w$
+where $\norm{y-x}_w^2 = \sum_k w_k(y_k - x_k)^2$ with weights $w_k > 0$.
+\end{definition}
+
+\begin{proposition}[Nearest Feasible Point]
+For range-constrained schemas, the nearest feasible point to $y$ is:
+\[
+  x^*(y)_k = \mathrm{clamp}(y_k, a_k, b_k) = \max(a_k, \min(b_k, y_k))
+\]
+This is the componentwise projection $\mathrm{proj}_{\A_0}(y)$.
+\end{proposition}
+
+\begin{proof}
+$\A_0 = \prod_k [a_k,b_k]$ is a product of closed intervals.
+The projection onto a product set decomposes over coordinates.
+The projection onto a closed interval $[a,b]$ is the clamp function. \qed
+\end{proof}
+
+The repair hint for field $k$ is $x^*_k - y_k$: the amount the field value
+must change to restore feasibility.
+
+\section{Layer Geometry: Configuration Merge}
+
+\begin{definition}[Layer System]
+\label{def:layer-system}
+A \emph{layer system} over schema $\Sigma$ is a tuple
+$(L, \leq_L, \{x^{(i)}\}_{i \in L})$ where:
+$L = \{1, \ldots, n\}$ is a finite set of layer indices;
+$\leq_L$ is a total order (the \emph{precedence order});
+$x^{(i)} \in \CC_\Sigma$ is the partial configuration of layer $i$,
+with $x^{(i)}_k = \bot$ if layer $i$ does not define field $k$.
+\end{definition}
+
+\begin{definition}[Precedence Join and Winner Map]
+\label{def:merge}
+The \emph{winner function} is:
+\[
+  W(k) = \max_{\leq_L} \bigl\{ i \in L \;\big|\; x^{(i)}_k \neq \bot \bigr\}
+\]
+The \emph{merge} is $x^* = \bigsqcup_{\leq_L} x^{(i)}$ where $x^*_k = x^{(W(k))}_k$.
+\end{definition}
+
+\begin{example}[Three-Layer Merge]
+\label{ex:merge}
+Schema $\Sigma = \{\texttt{port}, \texttt{timeout}, \texttt{log\_level}\}$, layers:
+\begin{align*}
+  x^{(1)} &= (\texttt{port}=8080,\; \texttt{timeout}=30,\; \texttt{log\_level}=\bot) \\
+  x^{(2)} &= (\texttt{port}=\bot,\; \texttt{timeout}=60,\; \texttt{log\_level}=\bot) \\
+  x^{(3)} &= (\texttt{port}=\bot,\; \texttt{timeout}=\bot,\; \texttt{log\_level}=\texttt{"debug"})
+\end{align*}
+Merge: $x^* = (8080, 60, \texttt{"debug"})$.
+Winner map: $W = \{\texttt{port}\mapsto 1,\; \texttt{timeout}\mapsto 2,\;
+\texttt{log\_level}\mapsto 3\}$.
+\end{example}
+
+\begin{theorem}[Merge Uniqueness and Non-Commutativity]
+\label{thm:merge}
+\begin{enumerate}
+  \item For fixed $(L, \leq_L, \{x^{(i)}\})$, the merge $x^*$ is unique.
+  \item Permuting $\leq_L$ generally changes $x^*$.
+  \item The merge is commutative iff no field is defined in more than one layer.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) $W(k) = \max_{\leq_L}(\cdot)$ is unique under a total order.
+(2) If $x^{(i)}_k \neq x^{(j)}_k$ for $i < j$, then swapping their order
+changes $W(k)$ and hence $x^*_k$.
+(3) If no field appears in more than one layer, $W(k)$ is uniquely determined
+regardless of ordering. Conversely, any overlap admits a permutation that
+changes the winner. \qed
 \end{proof}
 
 \begin{corollary}
-A merge is \emph{order-independent} (commutative) if and only if
-no field is defined in more than one layer.
-In all other cases, the layer ordering is a required part of the
-configuration artifact.
+The layer ordering is a required component of the configuration artifact
+whenever layers overlap. A merge without a documented precedence rule
+is inadmissible (violates TransformLawful; Definition~\ref{def:tl}).
 \end{corollary}
 
-% ============================================================
-\section{Algebraic Structure of Admission}
-
-\subsection{The Admission Lattice}
-
-\begin{definition}[Admission Lattice]
-The \emph{admission lattice} $(\Lc, \leq)$ is the power set of $\Sigma$
-ordered by inclusion, where a set $S \subseteq \Sigma$ of validated fields
-forms a \emph{partial admission state}.
-The bottom element $\hat{0} = \emptyset$ represents no validated fields;
-the top element $\hat{1} = \Sigma$ represents full admission.
+\begin{definition}[Merge Polytope]
+\label{def:merge-polytope}
+The \emph{merge polytope} is:
+\[
+  \PP_{\mathrm{merge}} = \conv\bigl\{
+    x \in \CC \;\big|\; x_k \in \{x^{(1)}_k, \ldots, x^{(n)}_k\} \setminus \{\bot\},\;
+    \forall k \bigr\}
+\]
+The winner-takes-all merge is a vertex of $\PP_{\mathrm{merge}}$.
 \end{definition}
 
-The lattice $(\Lc, \leq, \wedge, \vee)$ is a complete Boolean lattice
-isomorphic to $2^{|\Sigma|}$.
-It is the algebraic structure underlying the incremental validation
-process: each check extends the partial admission state monotonically.
+The merge polytope is the set of all configurations reachable by any
+precedence rule. Admission restricts the system to a single vertex of
+a known polytope, chosen by the declared and documented order.
+
+% ============================================================
+\chapter{Algebraic Structure of Admission}
+\label{ch:algebra}
+
+\section{The Admission Lattice}
+
+\begin{definition}[Admission Lattice]
+A \emph{partial admission state} is a set $S \subseteq \Sigma$ of fields
+that have passed their constraints.
+The \emph{admission lattice} $(\mathcal{P}(\Sigma), \subseteq)$ has
+bottom $\hat{0} = \emptyset$ and top $\hat{1} = \Sigma$.
+\end{definition}
 
 \begin{proposition}[Monotonicity of Validation]
-If $S \leq S'$ in $\Lc$ (i.e., $S \subseteq S'$), then
-any field-level constraint $\phi_k$ that holds for configuration
-$x$ at state $S'$ continues to hold at $S$.
-Validation progress is monotone: checks do not un-pass.
+If $S \subseteq S'$, then constraints that hold at state $S'$ also hold at $S$.
+Validation progress is monotone: constraints do not un-pass.
 \end{proposition}
 
 \begin{proof}
-Field constraints $\phi_k$ are functions of individual field values,
-not of validation state.
-Passing a constraint at step $S$ means $\phi_k(x_k) = 1$,
-which is independent of how many other fields have been checked.
+Field constraints $\phi_k(x_k)$ are functions of field values, independent
+of which other fields have been checked. \qed
 \end{proof}
 
-\subsection{The Typestate Monoid}
-
-The admission pipeline is a sequence of transformations.
-We formalize it as a \emph{typed monoid} acting on configuration states.
+\section{The Typestate Pipeline as a Monoidal Category}
 
 \begin{definition}[Admission Stage]
-An \emph{admission stage} is a partial function
-$f : \C_i \rightharpoonup \C_{i+1}$
-between typed configuration spaces, where
-$f$ is defined (i.e., the stage succeeds) if and only if
-the input satisfies the stage's precondition.
+An \emph{admission stage} is a partial function $f_i : T_i \rightharpoonup T_{i+1}$
+between \emph{stage types}. It succeeds if its precondition holds; otherwise
+it raises an error (producing no output).
 \end{definition}
 
-The full pipeline is the composition:
-
+The full pipeline is:
 \begin{align}
-  \pi = f_n \circ f_{n-1} \circ \cdots \circ f_1
+  f_1 &: \texttt{Raw} \to \texttt{BoundedSources}
+    & f_2 &: \texttt{BoundedSources} \to \texttt{Merged} \notag \\
+  f_3 &: \texttt{Merged} \to \texttt{EnvResolved}
+    & f_4 &: \texttt{EnvResolved} \to \texttt{Deserialized}\langle T\rangle \notag \\
+  f_5 &: \texttt{Deserialized}\langle T\rangle \to \texttt{Validated}\langle T\rangle
+    & f_6 &: \texttt{Validated}\langle T\rangle \to \texttt{Frozen}\langle T\rangle \notag \\
+  f_7 &: \texttt{Frozen}\langle T\rangle \to \texttt{CanonicalSaved}
+    & f_8 &: \texttt{CanonicalSaved} \to \texttt{Witnessed} \notag \\
+  f_9 &: \texttt{Witnessed} \to \texttt{AdmittedConfig}\langle T\rangle \notag
 \end{align}
 
-where:
-\begin{align*}
-  f_1 &: \text{Raw} \to \text{BoundedSources} \\
-  f_2 &: \text{BoundedSources} \to \text{Merged} \\
-  f_3 &: \text{Merged} \to \text{EnvResolved} \\
-  f_4 &: \text{EnvResolved} \to \text{Deserialized}(T) \\
-  f_5 &: \text{Deserialized}(T) \to \text{Validated}(T) \\
-  f_6 &: \text{Validated}(T) \to \text{Frozen}(T) \\
-  f_7 &: \text{Frozen}(T) \to \text{CanonicalSaved} \\
-  f_8 &: \text{CanonicalSaved} \to \text{Witnessed} \\
-  f_9 &: \text{Witnessed} \to \text{AdmittedConfig}(T)
-\end{align*}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  stage/.style={draw, rounded corners, minimum width=2.4cm, minimum height=0.6cm,
+    fill=blue!8, font=\small},
+  arrow/.style={->, >=Stealth, thick},
+  node distance=0.35cm,
+]
+  \node[stage] (raw) {\texttt{Raw}};
+  \node[stage, right=0.6cm of raw] (bs) {\texttt{Bounded}};
+  \node[stage, right=0.6cm of bs] (mg) {\texttt{Merged}};
+  \node[stage, right=0.6cm of mg] (er) {\texttt{EnvRes.}};
+  \node[stage, right=0.6cm of er] (ds) {\texttt{Deser.}};
+  \node[stage, below=0.9cm of raw] (fr) {\texttt{Frozen}};
+  \node[stage, right=0.6cm of fr] (vl) {\texttt{Valid.}};
+  \node[stage, right=0.6cm of vl] (cs) {\texttt{Canon.}};
+  \node[stage, right=0.6cm of cs] (wi) {\texttt{Witnessed}};
+  \node[stage, right=0.6cm of wi, fill=green!15] (ad) {\texttt{Admitted}};
+  \draw[arrow] (raw) -- (bs); \draw[arrow] (bs) -- (mg);
+  \draw[arrow] (mg) -- (er); \draw[arrow] (er) -- (ds);
+  \draw[arrow] (ds) -- ++(0,-0.45) -| (vl);
+  \draw[arrow] (vl) -- (fr);
+  \draw[arrow] (fr) -- (cs) node[midway, above, font=\tiny] {$f_7$};
+  \draw[arrow] (cs) -- (wi); \draw[arrow] (wi) -- (ad);
+\end{tikzpicture}
+\caption{The nine-stage admission pipeline. The terminal object
+\texttt{Admitted}$\langle T\rangle$ is constructible only by traversing all
+preceding stages in order.}
+\label{fig:pipeline}
+\end{figure}
 
 \begin{theorem}[Pipeline as Monoidal Category]
-The admission stages together with their typed composition form
-a monoidal category $\mathbf{Adm}$ where:
-\begin{enumerate}
-  \item Objects are the stage types
-        $\{\text{Raw}, \text{BoundedSources}, \ldots, \text{AdmittedConfig}(T)\}$.
-  \item Morphisms are the stage functions $f_i$.
-  \item Composition is function composition (when types match).
-  \item The monoidal unit is $\id : \text{Raw} \to \text{Raw}$.
-  \item There are no morphisms from \emph{later} stages to \emph{earlier}
-        stages: the category is \emph{acyclic}.
-\end{enumerate}
-The terminal object in $\mathbf{Adm}$ is $\text{AdmittedConfig}(T)$.
+\label{thm:category}
+The admission stages form a monoidal category $\mathbf{Adm}$ with:
+\begin{itemize}
+  \item Objects: stage types $\{\texttt{Raw}, \ldots, \texttt{AdmittedConfig}\langle T\rangle\}$
+  \item Morphisms: $\mathrm{Hom}(T_i, T_{i+1}) = \{f_i\}$
+  \item Composition: function composition
+  \item Unit: $\id_{\texttt{Raw}}$
+  \item Acyclicity: no morphism maps from a later type to an earlier one
+  \item Terminal object: $\texttt{AdmittedConfig}\langle T\rangle$
+\end{itemize}
 \end{theorem}
 
 \begin{proof}
-Associativity of composition is inherited from function composition.
-The identity morphism on each object is the identity function.
-Acyclicity follows from the strict type discipline: each $f_i$ maps
-between distinct types, and no inverse morphisms are defined.
-The terminal property of $\text{AdmittedConfig}(T)$ holds because
-no morphism exits it---it is the unique sink of the category.
+Associativity and identity are inherited from function composition.
+Acyclicity follows from Rust's type discipline: each $f_i$ maps between
+distinct named types, and the type system forbids construction of earlier-stage
+types from later-stage values. The terminal property holds because the only
+function producing \texttt{AdmittedConfig}$\langle T\rangle$ requires a
+\texttt{Witnessed} argument (i.e., all preceding stages must have succeeded). \qed
 \end{proof}
 
 \begin{corollary}[Forgery Prevention]
-Because $\text{AdmittedConfig}(T)$ is the terminal object of
-$\mathbf{Adm}$ and no morphism constructs it outside of $\pi$,
-an $\text{AdmittedConfig}(T)$ value cannot be constructed by
-any path other than traversing the full pipeline.
-\emph{Standing cannot be forged.}
+\label{cor:forgery}
+An \texttt{AdmittedConfig}$\langle T\rangle$ value cannot be constructed
+by any path other than the full pipeline. Standing cannot be forged.
 \end{corollary}
 
-\subsection{The Witness Group}
+This is not an aspiration; it is mechanically enforced by Rust's visibility
+and ownership systems. Private fields prevent external construction.
+
+\section{The Witness Group}
 
 \begin{definition}[Witness Algebra]
-Let $\W = (\{0,1\}^{256}, \oplus, \mathbf{0})$ be the group of
-256-bit BLAKE3 digests under XOR, with identity element $\mathbf{0}$.
-The \emph{witness function} $\omega : \A_0 \times \Lc^n \times E \to \W$
-maps an admitted configuration $x$, layer ordering $\ell \in \Lc^n$,
-and environment binding $e \in E$ to a witness value:
-\begin{equation}
-  \omega(x, \ell, e) = \mathrm{BLAKE3}\!\left(
-    \bigoplus_{i} \mathrm{BLAKE3}(s_i)
-    \;\|\;
-    \mathrm{BLAKE3}(\ell)
-    \;\|\;
-    \mathrm{BLAKE3}(e)
-    \;\|\;
-    \mathrm{BLAKE3}(\kappa(x))
-  \right)
-\end{equation}
-where $s_i$ are source file contents, $\|$ denotes concatenation,
-and $\kappa(x)$ is the canonical serialization of $x$.
+The \emph{witness algebra} is $(\W, \oplus, \bm{0}) = (\{0,1\}^{256}, \mathrm{XOR},
+\mathbf{0}_{256})$, the additive group of $\mathbb{F}_2^{256}$.
 \end{definition}
 
-\begin{theorem}[Witness Completeness and Determinism]
+\begin{definition}[Witness Function]
+\label{def:witness}
+For configuration $x$, layer ordering $\ell$, and environment $e$:
+\[
+  \omega(x, \ell, e) = \mathrm{BLAKE3}\!\Bigl(
+    \bigoplus_{i=1}^{n} \mathrm{BLAKE3}(x^{(i)})
+    \;\|\; \mathrm{BLAKE3}(\mathrm{enc}(\ell))
+    \;\|\; \mathrm{BLAKE3}(\mathrm{enc}(e))
+    \;\|\; \mathrm{BLAKE3}(\kappa(x))
+  \Bigr)
+\]
+where $\|$ denotes concatenation and $\kappa(x)$ is the canonical serialization.
+\end{definition}
+
+\begin{theorem}[Witness Properties]
 \label{thm:witness}
-The witness function $\omega$ satisfies:
-\begin{enumerate}
-  \item \textbf{Determinism:} for fixed $(x, \ell, e)$,
-        $\omega(x, \ell, e)$ is unique.
-  \item \textbf{Sensitivity:} if any of $x$, $\ell$, or $e$ changes,
-        then with overwhelming probability $\omega$ changes.
-  \item \textbf{Preimage resistance:} given $\omega(x, \ell, e)$,
-        it is computationally infeasible to recover $(x, \ell, e)$
-        without knowing the inputs.
-\end{enumerate}
+$\omega$ satisfies: (1) determinism; (2) collision resistance
+($\Pr[\omega(x,\ell,e) = \omega(x',\ell',e')] \leq 2^{-128}$ for unequal inputs);
+(3) preimage resistance ($\Omega(2^{256})$ work); (4) avalanche effect.
 \end{theorem}
 
 \begin{proof}
-(1) BLAKE3 is a deterministic function; all operations in $\omega$ are
-deterministic given fixed inputs.
-(2) Follows from the collision resistance of BLAKE3:
-$\Pr[\omega(x,\ell,e) = \omega(x',\ell',e')] \leq 2^{-256}$
-for $(x,\ell,e) \neq (x',\ell',e')$.
-(3) Preimage resistance is a standard property of BLAKE3 as a
-cryptographic hash function under the random oracle model.
+All properties follow from BLAKE3 as a cryptographic hash function
+under the random oracle model (Aumasson et al., 2020). \qed
 \end{proof}
 
+\begin{theorem}[Witness Injectivity]
+\label{thm:injectivity}
+$\omega|_{\A} : \A \to \W$ is injective with probability $\geq 1 - 2^{-128}$.
+\end{theorem}
+
+\begin{definition}[Canonical Serialization]
+A \emph{canonical serialization} $\kappa : \CC^{\mathrm{complete}} \to \Sigma^*$
+satisfies totality, injectivity, determinism, fixed field ordering, and
+normalization of all formatting choices.
+\end{definition}
+
 % ============================================================
-\section{The Bounded Receipted Chatman Equation}
+\chapter{The Bounded Receipted Chatman Equation}
+\label{ch:brce}
 
-We now state the central standing criterion in full generality.
-
-\subsection{The Four Predicates}
+\section{The Four Predicates}
 
 \begin{definition}[BoundSatisfied]
-A configuration $x \in \C$ satisfies \emph{BoundSatisfied} if
-every declared field constraint holds:
-\begin{equation}
-  \mathrm{BS}(x) = \bigwedge_{k \in \Sigma} \phi_k(x_k) = 1
-  \iff x \in \A_0
-\end{equation}
+\label{def:bs}
+\[
+  \mathrm{BS}(x, \Phi) = \bigwedge_{k \in \Sigma} \phi_k(x_k) = 1 \iff x \in \A_0
+\]
 \end{definition}
 
 \begin{definition}[TransformLawful]
-A merge $x^* = \bigsqcup_\sigma x^{(i)}$ with winner map $W$ satisfies
-\emph{TransformLawful} if the winner map is total over required fields
-and computed by a deterministic, documented precedence rule $\sigma$:
-\begin{equation}
+\label{def:tl}
+\[
   \mathrm{TL}(x^*, W, \sigma) =
-  \left[\dom(W) \supseteq \Sigma_{\mathrm{req}}\right]
-  \wedge
-  \left[W \text{ is } \sigma\text{-computable}\right]
-\end{equation}
-where $\Sigma_{\mathrm{req}} \subseteq \Sigma$ is the set of required fields.
+  [\dom(W) \supseteq \Sigma_{\mathrm{req}}]
+  \wedge [W \text{ is } \sigma\text{-computable}]
+  \wedge [\sigma \text{ is documented}]
+\]
 \end{definition}
 
 \begin{definition}[WitnessComplete]
-A configuration $x$ with layer ordering $\ell$ and environment $e$
-satisfies \emph{WitnessComplete} if a valid witness $w = \omega(x, \ell, e)$
-has been computed and stored:
-\begin{equation}
-  \mathrm{WC}(x, w) = \left[ w = \omega(x, \ell, e) \right] \wedge \left[ w \neq \mathbf{0} \right]
-\end{equation}
+\label{def:wc}
+\[
+  \mathrm{WC}(x, w, \ell, e) = [w = \omega(x, \ell, e)] \wedge [w \neq \bm{0}]
+\]
 \end{definition}
 
 \begin{definition}[CounterexamplesAbsent]
-Let $\ce = \{c_1, \ldots, c_m\}$ be a finite set of
-\emph{counterexample detectors}, each a function
-$c_i : \C \to \B$ where $c_i(x) = 1$ means detector $i$ fires.
-A configuration $x$ satisfies \emph{CounterexamplesAbsent} if
-no detector fires:
-\begin{equation}
-  \mathrm{CA}(x) = \bigwedge_{i=1}^{m} \lnot c_i(x) = 1
+\label{def:ca}
+Let $\EE = \{c_1, \ldots, c_m\}$ where $c_i : \CC \to \BB$.
+\[
+  \mathrm{CA}(x, \EE) = \bigwedge_{i=1}^{m} \lnot c_i(x) = 1
   \iff x \notin \bigcup_{i=1}^{m} c_i^{-1}(1)
-\end{equation}
+\]
 \end{definition}
 
-\subsection{The Standing Bit}
+Table~\ref{tab:detectors} lists the 23 named detectors implemented in
+\texttt{star-toml}.
+
+\begin{longtable}{@{}lll@{}}
+\caption{The $\EE$ counterexample detector set in \texttt{star-toml}.}
+\label{tab:detectors} \\
+\toprule
+\textbf{Code} & \textbf{Name} & \textbf{Pattern Detected} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{l}{\small\textit{continued}} \\
+\toprule \textbf{Code} & \textbf{Name} & \textbf{Pattern Detected} \\ \midrule
+\endhead
+CE-01 & PathTraversal & \texttt{..} or \texttt{$\backslash\backslash$} in string value \\
+CE-02 & AbsolutePathViolation & Absolute path in RelativeOnly field \\
+CE-03 & DuplicateKey & Key defined twice in same table scope \\
+CE-04 & UnknownField & Key absent from declared schema \\
+CE-05 & MissingRequired & Required field absent after merge \\
+CE-06 & OcelAsAuthority & OCEL record cited as standing evidence \\
+CE-07 & QConfigAuthority & Prose assertion of $\qc=1$ without witness \\
+CE-08 & NegativeWorkers & Worker count $< 1$ \\
+CE-09 & PortZero & Port number $= 0$ \\
+CE-10 & PortPrivileged & Port number $< 1024$ \\
+CE-11 & TimeoutZero & Timeout $\leq 0$ \\
+CE-12 & NestedTraversal & Traversal present after path normalization \\
+CE-13 & EnvOverrideUndocumented & Env var modifies field with no env policy \\
+CE-14 & LayerOrderUndocumented & Winner map not persisted \\
+CE-15 & WitnessAbsent & Artifact admitted without computed witness \\
+CE-16 & WitnessMismatch & Stored witness $\neq$ recomputed witness \\
+CE-17 & CanonicalMismatch & Stored canonical form $\neq$ expected \\
+CE-18 & CrossFieldViolation & Constraint involving $\geq 2$ fields violated \\
+CE-19 & TypeCoercionUnsafe & Value changed type during env substitution \\
+CE-20 & ArrayElementViolation & Array element fails per-element constraint \\
+CE-21 & DepthExceeded & TOML nesting depth exceeds declared bound \\
+CE-22 & StringLengthExceeded & String value longer than declared maximum \\
+CE-23 & EncodingViolation & Field not valid UTF-8 after env substitution \\
+\bottomrule
+\end{longtable}
+
+\section{The Standing Bit}
 
 \begin{definition}[Bounded Receipted Chatman Equation]
 \label{def:brce}
-For a configuration $x \in \C$, winner map $W$, layer ordering $\sigma$,
-witness $w$, and counterexample set $\ce$, the \emph{standing bit} is:
+For configuration $x$, winner map $W$, layer ordering $\sigma$,
+witness $w$, and detector set $\EE$:
 \begin{equation}
-  \boxed{
-  \qc(x, W, \sigma, w, \ce) = 1
-  \iff
-  \mathrm{BS}(x) \wedge \mathrm{TL}(x, W, \sigma) \wedge \mathrm{WC}(x, w) \wedge \mathrm{CA}(x)
-  }
+\boxed{
+  \qc(x, W, \sigma, w, \EE) = 1
+  \;\iff\;
+  \mathrm{BS}(x, \Phi)
+  \;\wedge\;
+  \mathrm{TL}(x, W, \sigma)
+  \;\wedge\;
+  \mathrm{WC}(x, w, \ell, e)
+  \;\wedge\;
+  \mathrm{CA}(x, \EE)
+}
 \end{equation}
-and $\qc = 0$ otherwise.
-The set of configurations with standing is the \emph{admitted set}:
-\begin{equation}
-  \A = \{ x \in \C \mid \qc(x, W, \sigma, w, \ce) = 1 \}
-\end{equation}
+The \emph{admitted set} is $\A = \{(x, W, \sigma, w, \EE) \mid \qc = 1\}$.
 \end{definition}
 
-\begin{theorem}[Soundness of BRCE]
-The admitted set $\A$ satisfies:
-\begin{enumerate}
-  \item $\A \subseteq \A_0$ (admitted configurations are feasible)
-  \item $\A \subseteq \C \setminus \bigcup_i c_i^{-1}(1)$ (no counterexample fires)
-  \item Every $x \in \A$ carries a valid witness (receipted)
-  \item The map $x \mapsto \qc(x)$ is computable in polynomial time
-        in $|\Sigma| + m$
-\end{enumerate}
+\section{Formal Properties}
+
+\begin{theorem}[Soundness]
+\label{thm:soundness}
+The admitted set satisfies:
+(1) admitted configurations are feasible ($\A \subseteq \A_0 \times \mathrm{Meta}$);
+(2) no counterexample fires on any admitted configuration;
+(3) every admitted configuration carries a valid witness;
+(4) every admitted configuration has a documented, computable merge.
 \end{theorem}
 
 \begin{proof}
-(1) $\mathrm{BS}(x) = 1 \Rightarrow x \in \A_0$ by Definition 2.3.
-(2) $\mathrm{CA}(x) = 1 \Rightarrow \forall i,\; c_i(x) = 0$ by Definition 4.4.
-(3) $\mathrm{WC}(x,w) = 1 \Rightarrow w = \omega(x,\ell,e)$ by Definition 4.3.
-(4) Each $\phi_k$ is computable in $O(1)$; their conjunction is $O(|\Sigma|)$.
-$\mathrm{TL}$ checks $O(|\Sigma|)$ fields.
-$\mathrm{WC}$ computes one BLAKE3 hash: $O(|x|)$.
-$\mathrm{CA}$ evaluates $m$ detectors: $O(m)$.
-Total: $O(|\Sigma| + m + |x|)$.
+Each clause is implied directly by the corresponding BRCE predicate:
+(1) from BS, (2) from CA, (3) from WC, (4) from TL. \qed
 \end{proof}
 
-\begin{theorem}[BRCE is Strictly Stronger than Parse Correctness]
-Let $\mathrm{Parse}(x) = 1$ denote that $x$ is syntactically valid TOML.
-Then $\qc(x) = 1 \Rightarrow \mathrm{Parse}(x) = 1$, but
-$\mathrm{Parse}(x) = 1 \not\Rightarrow \qc(x) = 1$.
+\begin{theorem}[Computability]
+\label{thm:complexity}
+$\qc(x, W, \sigma, w, \EE)$ is computable in
+$O(|\Sigma| + m + |x| \cdot H)$ time,
+where $m = |\EE|$ and $H$ is one BLAKE3 hash evaluation.
 \end{theorem}
 
 \begin{proof}
-Forward direction: any $x \in \A$ was successfully deserialized at
-stage $f_4$, which requires parse correctness.
-Converse: take $x$ with a field value outside its declared range.
-Then $\mathrm{BS}(x) = 0$, so $\qc(x) = 0$, but $x$ may parse correctly.
+BS: $O(|\Sigma|)$; TL: $O(|\Sigma|)$; WC: $O(|x| \cdot H)$;
+CA: $O(m \cdot |x|)$. Total: $O(|\Sigma| + m + |x| \cdot H)$. \qed
 \end{proof}
 
-\begin{corollary}[Prose Does Not Entail Standing]
-Let $\Sigma_{\mathrm{prose}}$ be the set of natural-language assertions
-about a configuration (README statements, review comments, approval emails).
-Then for any $x$ and any prose set $P$:
-\begin{equation}
-  \Sigma_{\mathrm{prose}} \not\vdash \qc(x) = 1
-\end{equation}
-Standing is entailed only by the BRCE predicate, not by description.
-\end{corollary}
+\begin{theorem}[BRCE Strictly Stronger Than Parse Correctness]
+\label{thm:stronger}
+$\qc(x) = 1 \Rightarrow \mathrm{Parse}(x) = 1$, but not conversely.
+\end{theorem}
+
+\begin{proof}
+Forward: $\qc = 1$ implies successful deserialization at $f_4$, which requires
+parse correctness. Converse: let $x$ have \texttt{port = -1} with constraint
+$\phi_{\texttt{port}}(v) = [1 \leq v \leq 65535]$. Then $\mathrm{Parse}(x) = 1$
+(the integer $-1$ is valid TOML) but $\mathrm{BS}(x) = 0$ so $\qc = 0$. \qed
+\end{proof}
+
+\begin{theorem}[Monotone Degradation]
+If $\qc = 1$ and any single predicate changes to 0, then $\qc$ becomes 0.
+If $\qc = 0$ and exactly one predicate is failing, fixing it restores $\qc = 1$.
+\end{theorem}
+
+\begin{proof}
+By the conjunction structure: $P_1 \wedge P_2 \wedge P_3 \wedge P_4 = 0$
+iff at least one $P_i = 0$. \qed
+\end{proof}
 
 % ============================================================
-\section{Calculus of Standing}
+\chapter{Calculus of Standing}
+\label{ch:calculus}
 
-We now develop a differential theory of configuration standing:
-how does $\qc$ change as a configuration changes?
-This theory grounds the authoring-time feedback loop.
+\section{The Smooth Surrogate}
 
-\subsection{Smooth Extension of the Standing Predicate}
+The standing bit $\qc : \CC \to \{0,1\}$ is discontinuous at $\partial\A_0$
+and does not admit derivatives. We construct a smooth surrogate.
 
-The standing bit $\qc : \C \to \{0,1\}$ is discontinuous.
-To apply calculus, we construct a smooth surrogate
-$\tilde{q} : \R^n \to [0,1]$ that agrees with $\qc$ on $\A$ and $V$.
+\begin{definition}[Field Satisfaction Score]
+\label{def:satisfaction}
+For range constraint $[a_k, b_k]$ with tolerance $\sigma_k > 0$:
+\[
+  s_k(v) = \exp\!\left(-\frac{\max(a_k - v,\; v - b_k,\; 0)^2}{2\sigma_k^2}\right)
+\]
+$s_k(v) = 1$ for $v \in [a_k, b_k]$; $s_k(v) \to 0$ outside.
+\end{definition}
 
-For numeric fields with interval constraints $[a_k, b_k]$,
-define the \emph{satisfaction score} for field $k$:
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=10cm, height=4.5cm,
+  xlabel={Field value $v$}, ylabel={$s_k(v)$},
+  xmin=-3, xmax=8, ymin=-0.05, ymax=1.15,
+  grid=major, grid style={gray!30}, samples=200,
+]
+  \addplot[fill=blue!10, draw=none] coordinates {(1,-0.05) (5,-0.05) (5,1.15) (1,1.15)} \closedcycle;
+  \addplot[thick, blue, domain=-3:1] {exp(-(1-x)^2/0.5)};
+  \addplot[thick, blue, domain=1:5] {1};
+  \addplot[thick, blue, domain=5:8] {exp(-(x-5)^2/0.5)};
+  \draw[dashed] (axis cs:1,0) -- (axis cs:1,1.1);
+  \draw[dashed] (axis cs:5,0) -- (axis cs:5,1.1);
+  \node at (axis cs:1,-0.1) [font=\small] {$a_k$};
+  \node at (axis cs:5,-0.1) [font=\small] {$b_k$};
+\end{axis}
+\end{tikzpicture}
+\caption{Field satisfaction score $s_k(v)$ for $[a_k, b_k] = [1,5]$,
+$\sigma_k = 0.5$. Score is 1 inside the feasible interval, decays
+smoothly outside.}
+\label{fig:score}
+\end{figure}
 
-\begin{equation}
-  s_k(x_k) = \exp\!\left( -\frac{[\max(a_k - x_k,\; x_k - b_k,\; 0)]^2}{2\sigma_k^2} \right)
-\end{equation}
-
-This is a Gaussian-envelope penalty: $s_k = 1$ when $x_k \in [a_k, b_k]$
-and decays smoothly to $0$ as $x_k$ moves away from the feasible interval.
-The parameter $\sigma_k > 0$ controls the rate of decay.
-
-The \emph{smooth standing score} is:
-
-\begin{equation}
+\begin{definition}[Smooth Standing Score]
+\[
   \tilde{q}(x) = \prod_{k \in \Sigma} s_k(x_k)
-\end{equation}
+\]
+This is $C^\infty$ on $\R^{|\Sigma|}$ and equals 1 iff $x \in \A_0$.
+\end{definition}
 
-Note that $\tilde{q}(x) = 1$ if and only if all fields are in their
-feasible ranges, and $\tilde{q}(x) < 1$ otherwise.
-
-\subsection{The Standing Gradient}
-
-\begin{proposition}[Standing Gradient]
-The gradient of $\tilde{q}$ with respect to the $k$-th field is:
-\begin{equation}
-  \frac{\partial \tilde{q}}{\partial x_k}
-  = \tilde{q}(x) \cdot \frac{\partial \ln s_k}{\partial x_k}
-\end{equation}
-where
-\begin{equation}
-  \frac{\partial \ln s_k}{\partial x_k} =
-  \begin{cases}
-    \dfrac{x_k - a_k}{\sigma_k^2} & \text{if } x_k < a_k \\[6pt]
-    0 & \text{if } x_k \in [a_k, b_k] \\[4pt]
-    \dfrac{b_k - x_k}{\sigma_k^2} & \text{if } x_k > b_k
-  \end{cases}
-\end{equation}
+\begin{proposition}[Log-Concavity]
+$\tilde{q}$ is log-concave on $\R^{|\Sigma|}$.
 \end{proposition}
 
 \begin{proof}
-By the chain rule: $\frac{\partial \tilde{q}}{\partial x_k}
-= \tilde{q}(x) \cdot \frac{\partial \ln \tilde{q}}{\partial x_k}
-= \tilde{q}(x) \cdot \frac{\partial \ln s_k}{\partial x_k}$,
-since $\ln \tilde{q} = \sum_j \ln s_j$ and only the $k$-th term depends on $x_k$.
-The formula for $\partial \ln s_k / \partial x_k$ follows from
-differentiating the Gaussian envelope.
+Each $s_k(v) = \exp(-r_k(v)^2/2\sigma_k^2)$ where $r_k(v) = \max(a_k-v, v-b_k, 0)$.
+$r_k$ is the distance from $v$ to $[a_k,b_k]$, which is convex.
+So $r_k^2$ is convex, $-r_k^2/2\sigma_k^2$ is concave, and $s_k$ is log-concave.
+A product of log-concave functions is log-concave. \qed
 \end{proof}
 
-The gradient points \emph{toward} the feasible region from outside it,
-and is zero inside.
-This is the mathematical basis for authoring-time repair hints:
-the gradient $-\nabla \tilde{q}$ is a repair direction.
+\section{The Standing Gradient}
 
-\subsection{Sensitivity Analysis}
+\begin{theorem}[Standing Gradient]
+\label{thm:gradient}
+\[
+  \frac{\partial \tilde{q}}{\partial x_k}(x) = \tilde{q}(x) \cdot G_k(x_k)
+\]
+where:
+\[
+  G_k(v) = \frac{\partial \ln s_k}{\partial v}(v) =
+  \begin{cases}
+    \dfrac{a_k - v}{\sigma_k^2}  & v < a_k \\[8pt]
+    0                              & v \in [a_k, b_k] \\[4pt]
+    \dfrac{b_k - v}{\sigma_k^2}  & v > b_k
+  \end{cases}
+\]
+\end{theorem}
 
-\begin{definition}[Configuration Sensitivity]
-The \emph{sensitivity} of the standing score to field $k$ is:
-\begin{equation}
-  \Lambda_k(x) = \left\lvert \frac{\partial \tilde{q}}{\partial x_k}(x) \right\rvert
-\end{equation}
-The \emph{sensitivity vector} $\bm{\Lambda}(x) = (\Lambda_1(x), \ldots, \Lambda_n(x))$
-ranks fields by how much their perturbation affects standing.
+\begin{proof}
+$\tilde{q} = \prod_j s_j$, so only the $k$-th factor depends on $x_k$:
+\[
+  \frac{\partial \tilde{q}}{\partial x_k} = s_k'(x_k) \cdot \prod_{j \neq k} s_j(x_j)
+  = \tilde{q}(x) \cdot \frac{s_k'(x_k)}{s_k(x_k)}
+\]
+Direct differentiation of the Gaussian envelope gives $G_k$. \qed
+\end{proof}
+
+The gradient $\nabla\tilde{q}(x)$ points toward $\A_0$ from outside it,
+and is zero inside. This is the mathematical basis for repair hints.
+
+\section{Sensitivity Analysis}
+
+\begin{definition}[Sensitivity]
+\[
+  \Lambda_k(x) = \abs{\frac{\partial \tilde{q}}{\partial x_k}(x)}
+\]
+The vector $\bm{\Lambda}(x) = (\Lambda_1(x), \ldots, \Lambda_n(x))$ ranks
+fields by their urgency for repair.
 \end{definition}
 
 \begin{theorem}[Sensitivity Concentration]
-For a product-form score $\tilde{q}(x) = \prod_k s_k(x_k)$:
-\begin{equation}
-  \Lambda_k(x) = \tilde{q}(x) \cdot \frac{\abs{r_k(x)}}{\sigma_k^2}
-\end{equation}
-where $r_k(x) = \max(a_k - x_k,\; x_k - b_k,\; 0)$ is the
-\emph{constraint residual} for field $k$.
-Sensitivity is concentrated on fields with large residuals
-and small $\sigma_k$ (tight tolerances).
+\label{thm:sensitivity}
+\[
+  \Lambda_k(x) = \tilde{q}(x) \cdot \frac{r_k(x_k)}{\sigma_k^2}
+\]
+where $r_k(v) = \max(a_k - v, v - b_k, 0)$ is the constraint residual.
+Sensitivity is zero inside $\A_0$ and grows with the residual.
 \end{theorem}
 
 \begin{proof}
-Follows directly from Proposition 5.2 and the definition of $r_k$.
+Immediate from Theorem~\ref{thm:gradient}:
+$\Lambda_k = \tilde{q}(x) \cdot \abs{G_k(x_k)} = \tilde{q}(x) \cdot r_k(x_k)/\sigma_k^2$.
+\qed
 \end{proof}
 
-\subsection{The Repair Derivative}
+\begin{corollary}[Repair Priority]
+The field requiring the most urgent repair is $k^* = \arg\max_k \Lambda_k(x)$.
+\end{corollary}
 
-Given a configuration $x \notin \A_0$ (lacking standing),
-the \emph{steepest-ascent repair} is:
-\begin{equation}
-  \delta x^* = \arg\max_{\norm{\delta x} = \epsilon} \tilde{q}(x + \delta x)
-  \approx \epsilon \cdot \frac{\nabla \tilde{q}(x)}{\norm{\nabla \tilde{q}(x)}}
-\end{equation}
-for small $\epsilon > 0$.
-This is the direction of maximum improvement in the standing score
-for a unit-norm perturbation.
+\section{Convergence of Greedy Repair}
 
-\begin{theorem}[Convergence of Greedy Repair]
-The gradient ascent iteration $x_{t+1} = x_t + \eta \nabla \tilde{q}(x_t)$
-converges to a point in $\A_0$ for sufficiently small learning rate $\eta > 0$,
-provided $\tilde{q}$ is strictly log-concave on the path from $x_0$ to $\A_0$.
+\begin{theorem}[Repair Convergence]
+\label{thm:repair}
+The gradient ascent iteration $x_{t+1} = x_t + \eta \nabla\tilde{q}(x_t)$
+converges to a point in $\A_0$ for sufficiently small $\eta > 0$.
 \end{theorem}
 
 \begin{proof}
-$\tilde{q}$ is a product of Gaussian envelopes.
-Each factor $s_k$ is log-concave (Gaussian densities are log-concave).
-A product of log-concave functions is log-concave.
-Gradient ascent on a smooth, bounded, log-concave objective converges
-to a global maximum by standard results in convex optimization
-(the log-concavity of $\tilde{q}$ implies the concavity of $\ln \tilde{q}$,
-whose maximizer is in $\A_0$).
+By the log-concavity proposition, $\ln\tilde{q}$ is concave. Gradient ascent
+on a smooth, bounded, concave objective converges to the global maximum set
+(Nesterov, 2004). The unique global maximum of $\tilde{q}$ is the feasible
+region $\A_0$. \qed
 \end{proof}
 
-This theorem is the mathematical foundation for the LSP repair hint:
-a repair direction is computable, and iterative repair converges.
+In practice, the ``iteration'' is the operator editing the configuration file
+guided by LSP repair hints. Each edit that increases $\tilde{q}$ moves toward
+$\A_0$; the theorem guarantees this process converges.
 
-% ============================================================
-\section{The Witness as a Receipt}
+\section{Higher-Order Analysis}
 
-\subsection{Information Content of the Witness}
-
-The witness $w = \omega(x, \ell, e)$ is a function of three inputs.
-We characterize its information content using Shannon entropy.
-
-\begin{definition}[Configuration Entropy]
-Given a probability distribution $P$ over $\C$,
-the \emph{configuration entropy} is:
-\begin{equation}
-  H(\C) = -\sum_{x \in \C} P(x) \log_2 P(x)
-\end{equation}
-The \emph{witness entropy} is $H(W) = H(\{0,1\}^{256}) = 256$ bits
-(under the assumption that BLAKE3 acts as a random oracle).
+\begin{definition}[Hessian of Standing]
+$H_{jk}(x) = \partial^2\tilde{q} / \partial x_j \partial x_k$
+captures cross-field sensitivity.
 \end{definition}
 
-\begin{proposition}[Witness Compression Impossibility]
-No two distinct admitted configurations $x \neq x'$ can share a witness.
+\begin{proposition}[Diagonal Hessian for Independent Constraints]
+For field-independent constraints, $H_{jk}(x) = 0$ for $j \neq k$
+when either field $j$ or $k$ is in the feasible range.
+Fields can be repaired independently in any order.
 \end{proposition}
 
 \begin{proof}
-Suppose $\omega(x, \ell, e) = \omega(x', \ell, e)$ with $x \neq x'$.
-Since $x \neq x'$, their canonical serializations differ:
-$\kappa(x) \neq \kappa(x')$.
-Therefore $\mathrm{BLAKE3}(\kappa(x)) \neq \mathrm{BLAKE3}(\kappa(x'))$
-(collision resistance of BLAKE3 with probability $1 - 2^{-256}$).
-The outer hash then produces different witnesses.
-Contradiction (with overwhelming probability).
+For independent constraints, $\tilde{q} = \prod_k s_k(x_k)$.
+The off-diagonal Hessian element is:
+$H_{jk} = (\partial s_j/\partial x_j)(\partial s_k/\partial x_k) \prod_{i \neq j,k} s_i$.
+This is zero when either $G_j(x_j) = 0$ or $G_k(x_k) = 0$,
+i.e., when either field is in its feasible range. \qed
 \end{proof}
 
-\subsection{The Witness as a Bijection}
+% ============================================================
+\chapter{Process Intelligence: Petri Nets, Event Logs, and Conformance}
+\label{ch:process}
 
-\begin{theorem}[Witness Injectivity over Admitted Configurations]
-The restriction $\omega|_{\A} : \A \to \W$ is injective
-(with overwhelming cryptographic probability).
+\section{Process Mining Foundations}
+
+Process mining (van der Aalst, 2016) extracts formal process models from
+event logs and checks conformance between observed and modeled behavior.
+In the context of configuration admission, process mining provides:
+(a) a formal language for the pipeline via Petri nets;
+(b) a mathematical treatment of lifecycle history via OCEL;
+(c) a conformance criterion relating observed executions to the
+admission model.
+
+\section{Petri Net Semantics of the Admission Pipeline}
+
+\begin{definition}[Petri Net]
+\label{def:petri}
+A \emph{Petri net} is a tuple $N = (P, T, F, M_0)$ where:
+$P$ is a finite set of \emph{places};
+$T$ is a finite set of \emph{transitions};
+$F \subseteq (P \times T) \cup (T \times P)$ is the \emph{flow relation};
+$M_0 : P \to \N$ is the \emph{initial marking}.
+Transition $t$ is \emph{enabled} at $M$ if $\forall p \in {\bullet}t,\; M(p) \geq 1$.
+Firing $t$ produces $M'(p) = M(p) - [p \in {\bullet}t] + [p \in t{\bullet}]$.
+\end{definition}
+
+\begin{construction}[Admission Pipeline Net $\NN_{\mathrm{adm}}$]
+\label{con:admission-net}
+Define $\NN_{\mathrm{adm}} = (P, T, F, M_0)$ with:
+$P = \{p_0, p_1, \ldots, p_9, p_{\mathrm{err}}\}$,
+$T = \{t_1, \ldots, t_9\} \cup \{t_1^e, \ldots, t_9^e\}$,
+$F = \{(p_{i-1}, t_i), (t_i, p_i)\}_{i=1}^{9}
+     \cup \{(p_{i-1}, t_i^e), (t_i^e, p_{\mathrm{err}})\}_{i=1}^{9}$,
+$M_0 = \mathbf{1}_{p_0}$.
+Place $p_i$ corresponds to stage type $T_i$; transition $t_i$ corresponds
+to $f_i$; $t_i^e$ is the failure transition; $p_{\mathrm{err}}$ is the
+error sink.
+\end{construction}
+
+\begin{theorem}[Soundness of $\NN_{\mathrm{adm}}$]
+$\NN_{\mathrm{adm}}$ is safe (no place ever exceeds one token),
+live (from any error state no further transitions fire),
+and bounded (total tokens $= 1$ invariant).
+Tokens can reach $p_9$ only via $p_0 \to p_1 \to \cdots \to p_9$.
 \end{theorem}
 
 \begin{proof}
-By Proposition 6.2 and Theorem 3.7 (collision resistance),
-distinct admitted configurations produce distinct witnesses.
+$\NN_{\mathrm{adm}}$ is a workflow net (WF-net) with unique source $p_0$
+and sink set $\{p_9, p_{\mathrm{err}}\}$.
+Each transition consumes one token from one place and produces one token
+in one place; total tokens is conserved at 1.
+Safety follows from the 1-bounded structure.
+Liveness at the error sink follows because $p_{\mathrm{err}}$ is in no pre-set.
+Sequential ordering $p_0 \to \cdots \to p_9$ is enforced by $F$. \qed
 \end{proof}
 
-This means the witness is a \emph{naming system} for admitted configurations:
-every distinct configuration in $\A$ has a unique name in $\W$.
-The name is not assigned by convention but computed from content.
+\section{Object-Centric Event Logs}
+\label{sec:ocel}
 
-% ============================================================
-\section{Process Intelligence: Measure Theory of Standing}
-
-\subsection{The Event Probability Space}
-
-Configuration admission events unfold over time.
-We model them as a filtered probability space.
-
-\begin{definition}[Admission Probability Space]
-Let $(\Omega, \mathcal{F}, P)$ be a probability space where:
-\begin{itemize}
-  \item $\Omega$ is the set of all possible configuration lifecycle trajectories
-  \item $\mathcal{F} = (\mathcal{F}_t)_{t \geq 0}$ is a filtration representing
-        the information available at time $t$
-  \item $P$ is a probability measure over trajectories
-\end{itemize}
-A \emph{configuration event} is an $\mathcal{F}$-measurable random variable
-$E : \Omega \to \mathcal{E}$ where $\mathcal{E}$ is the set of event types.
+\begin{definition}[Event]
+An \emph{event} is a tuple $(e, a, t, \mathcal{O}, \mathrm{attr})$ where:
+$e$ is a unique identifier;
+$a \in \mathcal{A}$ is an activity;
+$t \in \TT$ is a timestamp;
+$\mathcal{O}$ is a set of object references;
+$\mathrm{attr}$ maps attribute names to values.
 \end{definition}
 
-\begin{definition}[OCEL as Filtered History]
-The OCEL (Object-Centric Event Log) is the sequence of observed events
-$\{E_{t_1}, E_{t_2}, \ldots, E_{t_N}\}$ up to time $T$,
-which constitutes a realization of the stochastic process
-$(E_t)_{t \geq 0}$ under the filtration $\mathcal{F}_T$.
-OCEL is the history $\mathcal{F}_T$-measurable record.
-It is \emph{not} a statement about $P(\qc = 1)$ at any future time.
+\begin{definition}[Object-Centric Event Log]
+\label{def:ocel}
+An OCEL is $L = (\mathcal{E}, \mathcal{O}, \mathrm{Ev}, \mathrm{ObjType},
+\mathrm{ObjAttr})$ recording the sequence of events observed for a
+collection of objects over time.
+In \texttt{star-toml}, activities include:
+\texttt{StageEntered}, \texttt{StageCompleted}, \texttt{StageFailed},
+\texttt{WitnessComputed}, \texttt{ConfigAdmitted}.
 \end{definition}
 
 \begin{theorem}[OCEL is Not Standing Authority]
-Let $\mathcal{H}_T = \sigma(E_{t_1}, \ldots, E_{t_N})$ be the
-$\sigma$-algebra generated by all observed events up to time $T$.
-Then $\mathcal{H}_T \not\vdash \qc(x) = 1$ for any $x$.
+\label{thm:ocel}
+For any OCEL $L$ and configuration $x$:
+\[
+  L \not\vdash \qc(x) = 1
+\]
 \end{theorem}
 
 \begin{proof}
-$\qc(x) = 1$ is a property of the \emph{current} configuration $x$
-against the BRCE predicates (Definition \ref{def:brce}).
-It depends on $\A_0$, $W$, $\sigma$, $\omega$, and $\ce$---none of which
-are determined by the event history $\mathcal{H}_T$.
-A record of past events cannot certify the current state of $x$
-without re-running the admission pipeline on the current $x$.
+$\qc(x) = 1$ requires all four BRCE predicates to hold at the current
+moment for the current configuration $x$ and its current processing context.
+An OCEL is a finite record of past events ($\mathcal{F}_T$-measurable).
+Between time $T$ and any later query time $T'$:
+the configuration $x$ may have changed;
+the counterexample set $\EE$ may have grown;
+the witness $w$ may refer to a different $x$.
+No finite record of past events can certify the current standing.
+The admission pipeline must be re-executed on the current artifact. \qed
 \end{proof}
 
-This theorem formalizes the architectural separation: OCEL is process history;
-the witness is evidence; $\qc$ is the gate.
-Conflating them is a category error.
+The OCEL is process history---invaluable for audit and replay---but it is not
+a substitute for the current execution of $\pi$.
 
-\subsection{Design for Combinatorial Maximalism}
+\section{Conformance Checking}
+\label{sec:conformance}
 
-\begin{definition}[Variant Space]
-The \emph{variant space} $\mathcal{V}$ is the Cartesian product of all
-design axes for a configuration system:
-\begin{equation}
-  \mathcal{V} = \prod_{a \in \text{Axes}} D_a
-\end{equation}
-where $D_a$ is the domain of axis $a$.
-Axes include source count, layer count, environment override count,
-field type diversity, validation rule count, path policy, and
-counterexample detector activation patterns.
+\begin{definition}[Trace and Accepted Language]
+A \emph{trace} $\sigma = \langle a_1, \ldots, a_k \rangle$ records the
+activities observed for a single artifact.
+The \emph{accepted language} of $\NN_{\mathrm{adm}}$ is:
+\[
+  \mathcal{L}_{\mathrm{acc}}(\NN_{\mathrm{adm}}) = \{ \langle t_1, t_2, \ldots, t_9 \rangle \}
+\]
+There is exactly one accepted trace: the full successful pipeline.
 \end{definition}
 
-\begin{definition}[DfCM Measure]
-The \emph{Design for Combinatorial Maximalism (DfCM) measure} is the
-uniform probability measure $\mu$ over $\mathcal{V}$,
-together with a target coverage function $\rho : 2^\mathcal{V} \to [0,1]$:
-\begin{equation}
-  \rho(S) = \frac{\mu(S)}{\mu(\mathcal{V})} = \frac{|S|}{|\mathcal{V}|}
-\end{equation}
-A test suite $T$ achieves \emph{combinatorial coverage} $\rho(T)$.
-Full coverage means $\rho(T) = 1$; DfCM targets $\rho(T) \to 1$ as
-resources allow.
+\begin{theorem}[Conformance Equals Admission]
+\label{thm:conformance}
+\[
+  \sigma \in \mathcal{L}_{\mathrm{acc}}(\NN_{\mathrm{adm}})
+  \iff
+  \qc(x) = 1
+\]
+\end{theorem}
+
+\begin{proof}
+($\Rightarrow$) If $\sigma = \langle t_1, \ldots, t_9 \rangle$, all nine stages
+succeeded, producing a token in $p_9$. By Corollary~\ref{cor:forgery},
+this is the only way to produce \texttt{AdmittedConfig}$\langle T\rangle$,
+and all BRCE predicates hold by construction of the pipeline.
+
+($\Leftarrow$) $\qc = 1$ requires WC (stage $f_8$ computed the witness),
+TL (stage $f_2$ executed the merge), BS (stage $f_5$ passed validation),
+and CA (checked in stages $f_5$--$f_9$). All nine transitions must have fired. \qed
+\end{proof}
+
+\section{Design for Combinatorial Maximalism}
+\label{sec:dfcm}
+
+\begin{definition}[Variant Space]
+\label{def:variant-space}
+The \emph{variant space} $\VV$ is the Cartesian product over design axes:
+\[
+  \VV = D_{\mathrm{source}} \times D_{\mathrm{layer}} \times D_{\mathrm{env}}
+        \times D_{\mathrm{type}} \times D_{\mathrm{validation}}
+        \times D_{\mathrm{path}} \times D_{\mathrm{witness}}
+        \times D_{\mathrm{lifecycle}} \times D_{\mathrm{counterexample}}
+\]
+\end{definition}
+
+\begin{definition}[DfCM Coverage Measure]
+\label{def:dfcm}
+The \emph{DfCM coverage measure} is the uniform measure $\mu$ over $\VV$.
+The \emph{combinatorial coverage} of test suite $T \subseteq \VV$ is:
+\[
+  \rho(T) = \frac{\abs{T}}{\abs{\VV}} \in [0, 1]
+\]
+Pairwise coverage $\rho_2(T)$ requires every pair $(d_a, d_b)$ from axes
+$(a, b)$ to appear in at least one test.
 \end{definition}
 
 \begin{theorem}[Coverage Monotonicity]
-For any test suites $T \subseteq T'$, $\rho(T) \leq \rho(T')$.
-Adding tests never reduces combinatorial coverage.
+$T \subseteq T' \Rightarrow \rho(T) \leq \rho(T')$.
 \end{theorem}
-
-\begin{proof}
-$T \subseteq T' \Rightarrow |T| \leq |T'| \Rightarrow \rho(T) \leq \rho(T')$.
-\end{proof}
 
 \begin{definition}[Counterexample Density]
-The \emph{counterexample density} of detector $c_i$ over the variant space is:
-\begin{equation}
-  \delta_i = \mu\!\left(\{ v \in \mathcal{V} \mid c_i(v) = 1 \}\right)
-\end{equation}
-A detector with high $\delta_i$ is a high-priority detector:
-it fires across a large fraction of the variant space.
+$\delta_i = \Pr_{v \sim \mu}[c_i(v) = 1]$---the fraction of the variant space
+where detector $c_i$ fires.
 \end{definition}
 
-The DfCM design discipline is to enumerate all axes,
-measure the counterexample densities of all known detectors,
-and prioritize coverage of high-density regions.
-
-\subsection{The Fitness Score}
-
-\begin{definition}[Fitness Score]
-The \emph{fitness score} of a validation run is:
-\begin{equation}
-  f(x) = \frac{\abs{\{k \in \Sigma \mid \phi_k(x_k) = 1\}}}{\abs{\Sigma}}
-  \in [0, 1]
-\end{equation}
-The fitness score measures the fraction of declared constraints that pass.
-A configuration has standing only if $f(x) = 1$.
-\end{definition}
-
-\begin{proposition}[Fitness as Necessary but not Sufficient]
-$\qc(x) = 1 \Rightarrow f(x) = 1$, but $f(x) = 1 \not\Rightarrow \qc(x) = 1$.
-\end{proposition}
-
-\begin{proof}
-Forward: $\qc(x) = 1$ requires $\mathrm{BS}(x) = 1$, which means all
-constraints pass, so $f(x) = 1$.
-Converse: $f(x) = 1$ guarantees $\mathrm{BS}(x) = 1$ but not
-$\mathrm{TL}$, $\mathrm{WC}$, or $\mathrm{CA}$.
-A configuration with all field constraints passing but a missing witness
-has $f = 1$ and $\qc = 0$.
-\end{proof}
+High-$\delta_i$ detectors should be prioritized in test design.
 
 % ============================================================
-\section{The Poka-Yoke Layer: Error Prevention Before Execution}
+\chapter{The \texttt{star-toml} Implementation}
+\label{ch:implementation}
 
-\subsection{Authoring-Time ANDON}
+\section{Architecture Overview}
 
-The admission pipeline runs at load time.
-But defects introduced at authoring time---path traversal,
-duplicate keys, unknown fields---should be caught earlier.
-The language server provides this layer.
+The \texttt{star-toml} crate implements Chapters 2--5 in Rust.
+Rust's type system mechanically enforces the monoidal structure of
+$\mathbf{Adm}$: each stage type is a struct with private fields,
+making it impossible to construct \texttt{AdmittedConfig}$\langle T\rangle$
+without traversing all stages.
 
-\begin{definition}[LSP Diagnostic]
-An \emph{LSP diagnostic} is a tuple
-$(r, \gamma, \delta, m)$ where:
-\begin{itemize}
-  \item $r = (\text{line}_1, \text{col}_1, \text{line}_2, \text{col}_2)$ is a source range
-  \item $\gamma \in \{\text{Error}, \text{Warning}, \text{Information}\}$ is severity
-  \item $\delta \in \Delta$ is a diagnostic code from the code set $\Delta$
-  \item $m$ is a human-readable message
-\end{itemize}
-\end{definition}
+\subsection{Dependency Law}
+\[
+  \texttt{star-toml} \to \texttt{wasm4pm-compat};\quad
+  \texttt{star-toml-lsp} \to \texttt{star-toml};\quad
+  \texttt{wasm4pm} \to \texttt{star-toml}
+\]
+with prohibitions:
+$\texttt{star-toml} \not\to \texttt{wasm4pm}$
+and $\texttt{star-toml-lsp} \not\to \texttt{tower-lsp}$.
 
-\begin{definition}[ANDON Gate]
-The \emph{ANDON gate} $\alpha : 2^\Delta \to \{0, 1\}$ maps the set of
-active diagnostic codes to a binary signal:
-\begin{equation}
-  \alpha(D) =
-  \begin{cases}
-    1 & \text{if } D \cap \Delta_{\mathrm{error}} \neq \emptyset \\
-    0 & \text{otherwise}
-  \end{cases}
-\end{equation}
-where $\Delta_{\mathrm{error}} \subseteq \Delta$ is the set of error-severity codes.
-$\alpha = 1$ means ANDON is raised (defect present);
-$\alpha = 0$ means the file is diagnostically clean.
-\end{definition}
+\section{Typestate Pipeline in Rust}
 
-\begin{theorem}[LSP is Not Standing Authority]
-$\alpha(D) = 0 \not\Rightarrow \qc(x) = 1$.
-\end{theorem}
+\begin{lstlisting}[language={[5.3]Lua}, caption={Typestate admission pipeline
+(simplified; actual code enforces private fields)}]
+pub struct Raw(Vec<PathBuf>);
+pub struct BoundedSources { sources: Vec<SourceDigest> }
+pub struct Merged { value: toml::Value, winner: WinnerMap }
+pub struct EnvResolved { value: toml::Value, env: EnvSnapshot }
+pub struct Deserialized<T> { value: T }
+pub struct Validated<T> { value: T }
+pub struct Frozen<T> { value: T }
+pub struct CanonicalSaved { bytes: Vec<u8>, path: PathBuf }
+pub struct Witnessed { canonical: CanonicalSaved, witness: Blake3Digest }
 
-\begin{proof}
-$\alpha(D) = 0$ means no error-severity LSP diagnostics are active.
-But $\qc(x) = 1$ requires $\mathrm{WC}$ (a witness must exist) and
-$\mathrm{TL}$ (layer ordering must be verified)---properties that the
-LSP, operating on a single file without full pipeline context,
-cannot verify.
-Therefore $\alpha(D) = 0$ is a necessary but not sufficient condition
-for $\qc(x) = 1$.
-\end{proof}
+// Only path to AdmittedConfig<T>:
+pub fn load_admitted<T>(sources: Vec<PathBuf>)
+  -> Result<AdmittedConfig<T>, AdmissionError>
+{
+    Raw(sources)
+      .bound_sources()? .merge()? .resolve_env()?
+      .deserialize::<T>()? .validate()? .freeze()
+      .save_canonical()? .compute_witness()? .admit()
+}
+\end{lstlisting}
 
-This is the correct architectural role of the LSP:
-it is a \emph{poka-yoke} (mistake-proofing) device that prevents
-common defects from reaching the admission pipeline,
-not a substitute for the pipeline itself.
+\section{The BLAKE3 Witness}
+
+\begin{lstlisting}[language={[5.3]Lua}, caption={Witness computation}]
+pub fn compute_witness(self) -> Result<Witnessed, AdmissionError> {
+    let mut outer = blake3::Hasher::new();
+    for digest in &self.source_digests {
+        outer.update(digest.as_bytes());
+    }
+    outer.update(blake3::hash(&serde_json::to_vec(&self.layer_order)?).as_bytes());
+    outer.update(blake3::hash(&serde_json::to_vec(&self.env_snapshot)?).as_bytes());
+    outer.update(blake3::hash(&self.canonical.bytes).as_bytes());
+    Ok(Witnessed { canonical: self.canonical, witness: outer.finalize().into() })
+}
+\end{lstlisting}
+
+\section{The LSP Realization}
+
+The \texttt{star-toml-lsp} crate implements the poka-yoke layer.
+On every document change, it computes $\alpha(D)$ and writes:
+
+\begin{lstlisting}[numbers=none, caption={\texttt{.star-toml/lsp.gate} format}]
+ANDON=0
+diagnostics=3
+errors=0
+warnings=2
+\end{lstlisting}
+
+\texttt{ANDON=1} is set when \texttt{errors > 0}.
+All OCEL events are written with an explicit authority boundary:
+
+\begin{lstlisting}[language={[5.3]Lua}, caption={OCEL boundary annotation}]
+let event = serde_json::json!({
+    "ocel:type": kind.as_str(),
+    "ocel:authority": "lsp_advisory_only",
+    "ocel:note": "Not standing authority. \
+                  Standing requires q_config=1 via TrustedLoader.",
+    "attrs": attrs,
+});
+\end{lstlisting}
+
+\section{The 23-Counterexample Verifier}
+
+\begin{lstlisting}[language={[5.3]Lua}, caption={Verifier standing check}]
+let failures = CounterexampleDetector::all()
+    .iter()
+    .filter(|ce| ce.check(&state).detector_fires)
+    .count();
+let q_verifier = if failures == 0 { 1 } else { 0 };
+println!("q_config = {q_verifier}");
+\end{lstlisting}
+
+The standing condition for release is $q_{\mathrm{verifier}} = 1$.
 
 % ============================================================
-\section{Generalization: Bounded Admission Beyond Configuration}
+\chapter{Generalization and the Phase Change}
+\label{ch:generalization}
 
-\subsection{The Admission Schema}
-
-The BRCE framework applies to any artifact that:
-\begin{enumerate}
-  \item Has a declared schema with checkable field constraints
-  \item Is composed from multiple sources under a precedence rule
-  \item Can be canonicalized and witnessed
-  \item Has a finite set of named failure detectors
-\end{enumerate}
+\section{The General Admission Problem}
 
 \begin{definition}[General Admission Problem]
-Given an artifact space $\mathcal{X}$, a constraint family
-$\Phi = \{\phi_k\}$, a merge operation $\sqcup$, a witness function $\omega$,
-and a detector set $\ce$, the \emph{general admission problem} is to determine:
-\begin{equation}
-  q_{\mathcal{X}}(x) = \mathrm{BS}_\Phi(x)
-    \wedge \mathrm{TL}_\sqcup(x)
-    \wedge \mathrm{WC}_\omega(x)
-    \wedge \mathrm{CA}_\ce(x)
-\end{equation}
+\label{def:general}
+Given artifact space $\mathcal{X}$, constraint family $\Phi$,
+merge $\sqcup$, witness $\omega$, and detectors $\EE$:
+\[
+  q_{\mathcal{X}}(x, W, \sigma, w, \EE) =
+  \mathrm{BS}_\Phi(x) \wedge \mathrm{TL}_\sqcup(x, W, \sigma) \wedge
+  \mathrm{WC}_\omega(x, w) \wedge \mathrm{CA}_\EE(x)
+\]
 \end{definition}
-
-The following table instantiates the four predicates for different artifact types:
 
 \begin{table}[h]
 \centering
 \renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}lllll@{}}
+\begin{tabular}{@{}lp{2.5cm}p{2.5cm}p{2.2cm}p{3.0cm}@{}}
 \toprule
 \textbf{Domain} & \textbf{BS} & \textbf{TL} & \textbf{WC} & \textbf{CA} \\
 \midrule
-Config file & Type/range & Layer order & BLAKE3 & Path traversal, dupes \\
+Config file & Type/range & Layer order & BLAKE3 & CE-01--23 \\
 Agent output & Schema match & Tool call order & Output hash & Hallucination detectors \\
-Build plan & Dep bounds & Build order & Plan hash & Cycle detectors \\
-Release desc & Version bounds & Changelog order & Release hash & Breaking-change detectors \\
-Policy file & Rule bounds & Precedence & Policy hash & Contradiction detectors \\
+Build plan & Dep bounds & Topo order & Plan hash & Cycle detectors \\
+Release desc & SemVer bounds & Changelog order & Manifest hash & Breaking-change det. \\
+Policy file & Rule bounds & Precedence order & Policy hash & Contradiction det. \\
+Care plan & Dosage bounds & Intervention order & Plan hash & Contraindication det. \\
 Infra manifest & Resource bounds & Apply order & State hash & Drift detectors \\
+ML config & Hyperparam bounds & Sweep order & Config hash & Budget/safety det. \\
 \bottomrule
 \end{tabular}
-\caption{The four BRCE predicates instantiated across artifact domains.}
+\caption{BRCE predicates instantiated across artifact domains.}
+\label{tab:general}
 \end{table}
 
-\subsection{The Phase Change}
-
-The classical model of software deployment is:
-\begin{equation}
-  \text{generate} \to \text{test} \to \text{deploy} \to \text{observe}
-\end{equation}
-Configuration is assumed correct until observed to be wrong.
-
-The admission model is:
-\begin{equation}
-  \text{generate} \to \text{bound} \to \text{merge} \to \text{witness} \to \text{admit} \to \text{execute}
-\end{equation}
-No artifact may execute without standing.
-
-This is not an incremental improvement.
-It is a phase change in the relationship between instruction and action.
+\section{Admitted Execution}
 
 \begin{definition}[Admitted Execution]
 A system operates under \emph{admitted execution} if:
-\begin{equation}
-  \forall a \in \text{Actions},\; \text{precondition}(a)
-  \supseteq \{\qc(\ell_a) = 1\}
-\end{equation}
-where $\ell_a$ is the operational law governing action $a$.
-No action is taken without the corresponding law having standing.
+\[
+  \forall a \in \mathrm{Actions}(S),\;
+  \mathrm{precondition}(a) \supseteq \{ q_{\mathcal{X}}(\ell_a) = 1 \}
+\]
+No action executes without its operational law having standing.
 \end{definition}
 
-\begin{theorem}[Admitted Execution Reduces Unauthorized State]
-Under admitted execution, the set of reachable system states is a
-strict subset of the reachable states under unadmitted execution.
+\begin{theorem}[State Space Reduction]
+Let $R$ be the reachable states under unadmitted execution and $R_\A$ under
+admitted execution. Then $R_\A \subsetneq R$.
 \end{theorem}
 
 \begin{proof}
-Let $R$ be the reachable state space under unadmitted execution and
-$R_\A$ under admitted execution.
-Under unadmitted execution, any configuration $\ell \in \C$ may
-govern an action, including $\ell \notin \A$.
-Under admitted execution, only $\ell \in \A$ governs actions.
-Since $\A \subsetneq \C$ (the admitted set is a strict subset of all
-configurations when any constraint is non-trivial),
-$R_\A \subsetneq R$.
+Under unadmitted execution, any $\ell \in \mathcal{X}$ may govern an action,
+including $\ell \in V = \mathcal{X} \setminus \A$.
+Under admitted execution, only $\ell \in \A \subsetneq \mathcal{X}$ may govern actions.
+Therefore $R_\A \subsetneq R$. \qed
+\end{proof}
+
+\begin{theorem}[LSP is Poka-Yoke, Not Authority]
+\label{thm:poka-yoke}
+\[
+  \alpha(D) = 0 \not\Rightarrow \qc(x) = 1
+  \qquad\text{and}\qquad
+  \alpha(D) = 1 \Rightarrow \qc(x) = 0
+\]
+\end{theorem}
+
+\begin{proof}
+($\alpha = 0 \not\Rightarrow \qc = 1$): $\alpha = 0$ guarantees no error
+diagnostics, but not WC or TL, which require full pipeline context.
+
+($\alpha = 1 \Rightarrow \qc = 0$): $\alpha = 1$ means at least one
+error diagnostic fired, corresponding to a violation of BS or CA;
+either implies $\qc = 0$. \qed
+\end{proof}
+
+\section{Implications for Machine-Generated Systems}
+
+An LLM can generate syntactically valid TOML that violates every constraint.
+It can generate undocumented merge precedence.
+It can generate path traversal attacks in string values.
+It can generate care plans with contraindicated dosages.
+
+None of these failures are caught by ``the LLM reviewed the schema.''
+All of them are caught by $\qc$.
+
+\begin{corollary}[LLM Output Requires Admission]
+For any LLM-generated artifact $x$:
+\[
+  q_{\mathcal{X}}(x) = 1 \iff \mathrm{BS}(x) \wedge \mathrm{TL}(x) \wedge \mathrm{WC}(x) \wedge \mathrm{CA}(x)
+\]
+The source of the artifact---human, LLM, automated system---is irrelevant.
+Standing is computed from the artifact, not inferred from its provenance.
+\end{corollary}
+
+This is bounded admission's key property: it is \emph{source-agnostic}.
+It does not ask ``who generated this?'' It asks ``does this satisfy the predicate?''
+
+\section{The Phase Change}
+
+The classical deployment cycle assumes correctness until observed failure:
+\[
+  \text{generate} \to \text{test} \to \text{deploy} \to \text{observe}
+\]
+Observation occurs in production. Cost is measured in incidents.
+
+The admission cycle gates on standing before execution:
+\[
+  \text{generate} \to \text{bound} \to \text{merge} \to \text{witness}
+  \to \text{admit} \to \text{execute}
+\]
+
+\begin{theorem}[Phase Change is Categorical, Not Incremental]
+The transition from classical to admitted execution is a categorical change
+in system semantics, not an incremental improvement.
+\end{theorem}
+
+\begin{proof}
+The precondition for execution changes from $\mathrm{Parse}(\ell) = 1$
+to $\qc(\ell) = 1$. By Theorem~\ref{thm:stronger}, the second is strictly
+stronger. The set of configurations that may govern action changes from
+$\CC^{\mathrm{syntactic}}$ to $\A \subsetneq \CC^{\mathrm{syntactic}}$.
+A change in the precondition structure changes the reachable state space
+(Theorem 8.2). A change in reachable state space is a categorical change
+in system semantics. \qed
 \end{proof}
 
 % ============================================================
-\section{The \texttt{star-toml} Implementation}
+\chapter{Conclusion}
 
-The foregoing theory is implemented in \texttt{star-toml},
-a Rust library available at \texttt{https://github.com/seanchatmangpt/star-toml}.
+\section{Summary}
 
-\subsection{Typestate Realization}
+We have built $\qc$ from first principles:
 
-The monoidal category $\mathbf{Adm}$ (Theorem 3.4) is realized in Rust
-via \emph{typestate programming}: each stage type is a distinct Rust type
-with private inner fields.
-External code cannot construct the terminal object
-\texttt{AdmittedConfig<T>} by struct literal---only the
-\texttt{TrustedLoader::load\_admitted()} function produces it,
-enforcing that the full pipeline has been traversed.
-
-\subsection{BRCE Verification}
-
-The \texttt{verifier\_report} binary checks 23 named counterexamples
-(the set $\ce$ of Definition 4.4) against the current implementation.
-Each check is a function $c_i : \text{State} \to \{0, 1\}$.
-The verifier outputs a report with $|\ce_{\mathrm{active}}| = 0$ as
-the standing condition for release.
-
-\subsection{The LSP Realization}
-
-The \texttt{star-toml-lsp} crate realizes the poka-yoke layer
-(Section 8) as a Language Server Protocol server using \texttt{lsp-max}.
-It computes $\alpha(D)$ on every document change and writes the ANDON gate
-file \texttt{.star-toml/lsp.gate}.
-It explicitly does not implement any path to \texttt{AdmittedConfig<T>}.
-
-% ============================================================
-\section{Conclusion}
-
-We have derived the standing criterion $\qc$ from first principles:
 \begin{itemize}
-  \item \textbf{Geometry} gave us the feasible region $\A_0$,
-        the violation distance, and the merge polytope.
-  \item \textbf{Algebra} gave us the admission lattice $\Lc$,
-        the monoidal category $\mathbf{Adm}$, and the witness group $\W$.
-  \item \textbf{Calculus} gave us the standing gradient $\nabla \tilde{q}$,
-        sensitivity analysis, and convergent repair.
-  \item \textbf{Measure theory} gave us the DfCM coverage measure $\mu$,
-        the fitness score $f$, and the formal separation of OCEL history
-        from standing authority.
+  \item \textbf{Geometry}: configuration spaces are bounded polytopes;
+        the feasible region $\A_0$ is convex for range constraints;
+        the violation distance is the repair metric;
+        the merge polytope contains all reachable configurations.
+
+  \item \textbf{Algebra}: the admission pipeline is a monoidal category
+        $\mathbf{Adm}$ with unique terminal object \texttt{AdmittedConfig}$\langle T\rangle$;
+        the witness group $\W$ is a 256-bit group under XOR;
+        the witness function is injective over admitted configurations.
+
+  \item \textbf{BRCE}: the four predicates are independently necessary and
+        jointly sufficient; the equation is sound, monotone, and computable
+        in polynomial time.
+
+  \item \textbf{Calculus}: the smooth surrogate $\tilde{q}$ is log-concave;
+        its gradient points toward feasibility;
+        greedy repair converges.
+
+  \item \textbf{Process}: the admission pipeline has a Petri net realization
+        $\NN_{\mathrm{adm}}$ that is safe, live, and bounded;
+        conformance with the net equals admission;
+        OCEL is history, not authority;
+        DfCM provides a measure-theoretic coverage criterion.
 \end{itemize}
 
-The four predicates---BoundSatisfied, TransformLawful, WitnessComplete,
-CounterexamplesAbsent---are each independently necessary and jointly
-sufficient for standing.
-Their conjunction is the \emph{Bounded Receipted Chatman Equation}.
+\section{The Central Claim}
 
-The phase change is this:
+An artifact that instructs a machine or institution to act
+must have standing before it may act.
+Standing is not asserted; it is computed.
+Standing is not remembered; it is re-computed from the artifact.
+Standing is not prose; it is the BRCE.
 
-\begin{quote}
-\itshape
-From systems that execute assumed law\\
-to systems that admit law before execution.
-\end{quote}
-
-Configuration is the first operational law.
-Bounded admission is the mechanism.
-$\qc = 1$ is the gate.
+\begin{equation}
+  \boxed{
+    \qc = 1 \;\iff\;
+    \mathrm{BoundSatisfied}
+    \;\wedge\;
+    \mathrm{TransformLawful}
+    \;\wedge\;
+    \mathrm{WitnessComplete}
+    \;\wedge\;
+    \mathrm{CounterexamplesAbsent}
+  }
+\end{equation}
 
 The future is not autonomous generation.
 The future is \emph{bounded admission} of machine-generated artifacts.
 
-That is the claim.
 That is the thesis.
 
 % ============================================================
 \appendix
 
-\section{Proof of Merge Idempotency}
+\chapter{Mathematical Prerequisites}
 
-\begin{proposition}
-For a single-layer configuration ($n = 1$),
-$\bigsqcup_\sigma \{x^{(1)}\} = x^{(1)}$.
-\end{proposition}
-\begin{proof}
-$W(k) = 1$ for all $k \in \dom(x^{(1)})$, so $x^* = x^{(1)}$.
-\end{proof}
+\section{Set Theory}
+We assume ZFC. Key axioms used: Extensionality, Power Set, and Choice.
 
-\section{BLAKE3 Properties}
+\section{Category Theory}
+A category $\mathbf{C}$: objects $\mathrm{Ob}(\mathbf{C})$,
+hom-sets $\mathrm{Hom}(A,B)$, associative composition, identity morphisms.
+A \emph{terminal object} $1$ has a unique morphism $! : A \to 1$ from every
+object $A$.
 
-BLAKE3 is a cryptographic hash function with the following properties
-used in this paper:
-\begin{enumerate}
-  \item \emph{Determinism}: equal inputs produce equal outputs.
-  \item \emph{Collision resistance}: finding $a \neq b$ with
-        $\mathrm{BLAKE3}(a) = \mathrm{BLAKE3}(b)$ requires $O(2^{128})$ operations.
-  \item \emph{Preimage resistance}: given $h$, finding $a$ with
-        $\mathrm{BLAKE3}(a) = h$ requires $O(2^{256})$ operations.
-  \item \emph{Avalanche effect}: changing one bit in the input changes,
-        on average, half the bits of the output.
-\end{enumerate}
+\section{Cryptographic Assumptions}
+All security claims assume the random oracle model for BLAKE3:
+collision resistance $\Pr \leq 2^{-128}$;
+preimage resistance $\Omega(2^{256})$;
+avalanche effect $\approx 128$ bits flip per single-bit input change.
 
-\section{Glossary of Notation}
+\chapter{Counterexample Detector Specifications}
 
-\begin{tabular}{@{}ll@{}}
+Each detector $c_i : \CC \to \BB$ is specified by:
+a pattern $P_i$ (the condition that triggers it);
+a severity $\gamma_i \in \{\text{Error}, \text{Warning}\}$;
+a repair action $R_i$ (the recommended fix).
+
+Selected specifications:
+
+\begin{longtable}{@{}lp{3.5cm}lp{5cm}@{}}
+\caption{Selected counterexample detector specifications.} \\
 \toprule
-Symbol & Meaning \\
+\textbf{Code} & \textbf{Pattern} & \textbf{Severity} & \textbf{Repair} \\
 \midrule
-$\C$ & Configuration space \\
+\endfirsthead
+\toprule
+\textbf{Code} & \textbf{Pattern} & \textbf{Severity} & \textbf{Repair} \\
+\midrule
+\endhead
+CE-01 & $\exists k: x_k \ni \texttt{..}$ & Error & Remove traversal segments \\
+CE-02 & $x_k \in \texttt{AbsPath}$ and $\phi_k = \texttt{RelOnly}$ & Error & Use relative path \\
+CE-03 & Duplicate key in scope & Error & Remove duplicate definition \\
+CE-15 & WC: $w = \bm{0}$ & Error & Re-run full pipeline \\
+CE-16 & $w \neq \omega(x,\ell,e)$ & Error & Regenerate witness \\
+\bottomrule
+\end{longtable}
+
+\chapter{Notation Index}
+
+\begin{longtable}{@{}lp{10cm}@{}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule \textbf{Symbol} & \textbf{Meaning} \\ \midrule
+\endhead
+$\CC$ & Configuration space \\
+$\CC^{\mathrm{complete}}$ & Configurations with no undefined required fields \\
 $\A$ & Admitted set ($\qc = 1$) \\
 $\A_0$ & Feasible region (BoundSatisfied) \\
-$\F_k$ & Value domain of field $k$ \\
-$\Sigma$ & Schema (set of field names) \\
-$\phi_k$ & Constraint function for field $k$ \\
-$\sqcup_\sigma$ & Precedence join (merge) under ordering $\sigma$ \\
+$V$ & Violation set ($\CC \setminus \A_0$) \\
+$\Sigma$ & Schema (finite set of field names) \\
+$\FF_k$ & Value domain of field $k$ \\
+$\phi_k$ & Constraint predicate for field $k$ \\
+$\Phi$ & Constraint family $\{\phi_k\}_{k \in \Sigma}$ \\
+$x^*$ & Merged configuration \\
+$x^{(i)}$ & Partial configuration of layer $i$ \\
 $W$ & Winner map \\
-$\Lc$ & Admission lattice \\
+$\sigma$ & Layer precedence order \\
+$\sqcup$ & Precedence join (merge) \\
+$\PP_{\mathrm{merge}}$ & Merge polytope \\
 $\mathbf{Adm}$ & Monoidal admission category \\
-$\W$ & Witness algebra (BLAKE3 digests under XOR) \\
+$f_i$ & Admission stage function \\
+$\pi$ & Full pipeline $f_9 \circ \cdots \circ f_1$ \\
+$\W$ & Witness algebra \\
 $\omega$ & Witness function \\
-$\ce$ & Counterexample detector set \\
-$c_i$ & Individual counterexample detector \\
-$\qc$ & Standing bit (Bounded Receipted Chatman Equation) \\
-$\tilde{q}$ & Smooth surrogate for $\qc$ \\
+$\kappa$ & Canonical serialization \\
+$\EE$ & Counterexample detector set \\
+$c_i$ & Counterexample detector $i$ \\
+$\qc$ & Standing bit (BRCE) \\
+$\mathrm{BS}$ & BoundSatisfied \\
+$\mathrm{TL}$ & TransformLawful \\
+$\mathrm{WC}$ & WitnessComplete \\
+$\mathrm{CA}$ & CounterexamplesAbsent \\
+$\tilde{q}$ & Smooth standing score surrogate \\
+$s_k$ & Field satisfaction score \\
 $\Lambda_k$ & Sensitivity of standing to field $k$ \\
-$f$ & Fitness score \\
-$\mu$ & DfCM measure over variant space \\
+$r_k$ & Constraint residual for field $k$ \\
+$\sigma_k$ & Tolerance parameter for field $k$ \\
+$\NN_{\mathrm{adm}}$ & Admission Petri net \\
+$L$ & Object-Centric Event Log \\
+$\VV$ & Variant space (DfCM) \\
+$\mu$ & DfCM uniform measure \\
 $\rho$ & Combinatorial coverage \\
+$\delta_i$ & Counterexample density of $c_i$ \\
 $\alpha$ & ANDON gate function \\
 \bottomrule
-\end{tabular}
+\end{longtable}
 
 % ============================================================
+\chapter*{Bibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+
+\begin{enumerate}
+\item
+van der Aalst, W.M.P. (2016).
+\textit{Process Mining: Data Science in Action} (2nd ed.).
+Springer.
+
+\item
+van der Aalst, W.M.P., Berti, A. (2020).
+Discovering Object-centric Petri Nets.
+\textit{Fundamenta Informaticae}, 175(1--4), 1--40.
+
+\item
+Aumasson, J.-P., Neves, S., Wilcox-O'Hearn, Z., Wiker, C. (2020).
+BLAKE3: One Function, Fast Everywhere.
+\textit{IACR Cryptology ePrint Archive}, 2020:1165.
+
+\item
+Mac Lane, S. (1971).
+\textit{Categories for the Working Mathematician}.
+Springer.
+
+\item
+Nesterov, Y. (2004).
+\textit{Introductory Lectures on Stochastic Optimization}.
+Springer.
+
+\item
+Rockafellar, R.T. (1970).
+\textit{Convex Analysis}.
+Princeton University Press.
+
+\item
+Klabnik, S., Nichols, C. (2023).
+\textit{The Rust Programming Language} (2nd ed.).
+No Starch Press.
+
+\item
+Chatman, S. (2026).
+\texttt{star-toml}: A Bounded Admission Library.
+\url{https://github.com/seanchatmangpt/star-toml}
+
+\item
+Poka-Yoke (Mistake-proofing).
+In: Shingo, S. (1986).
+\textit{Zero Quality Control: Source Inspection and the Poka-Yoke System}.
+Productivity Press.
+
+\item
+ISO/IEC 27001:2022.
+\textit{Information Security Management Systems}.
+International Organization for Standardization.
+\end{enumerate}
+
 \end{document}
