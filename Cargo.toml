@@ -11,6 +11,7 @@ homepage = "https://github.com/seanchatmangpt/star-toml"
 readme = "README.md"
 keywords = ["config", "toml", "layered", "validation"]
 categories = ["development-tools", "config"]
+exclude = [".agents/", "PROJECT.md", "TEST_INFRA.md", "TEST_READY.md", "mcp_server.py"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
