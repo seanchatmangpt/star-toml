@@ -412,7 +412,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "star-toml"
-version = "26.6.27"
+version = "26.6.28"
 dependencies = [
  "blake3",
  "serde",
@@ -425,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "star-toml-derive"
-version = "26.6.27"
+version = "26.6.28"
 dependencies = [
  "quote",
  "syn",

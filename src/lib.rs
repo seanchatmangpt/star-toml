@@ -414,6 +414,7 @@ pub mod expand;
 pub mod loader;
 pub mod merge;
 pub mod ocel;
+pub mod path;
 pub mod reports;
 pub mod schema;
 pub mod validation;
@@ -423,10 +424,12 @@ pub use events::{AdmissionEvent, ConfigEventKind};
 pub use expand::expand_env_vars;
 pub use loader::{
     find_and_load, find_config_file, from_str, load_file, save_file, save_pretty, to_string,
-    BoundedSources, Config, ConfigDigest, ConfigFile, ConfigLifecycle, ConfigSourceReport,
-    Deserialized, EnvResolved, Frozen, FrozenLoadResult, Loader, Merged, Raw, TrustedConfig,
-    TrustedLoader, Validated, ValidationReport,
+    AdmittedConfig, BoundedSources, Config, ConfigDigest, ConfigFile, ConfigLifecycle,
+    ConfigSourceReport, ConfigWitness, Deserialized, EnvResolved, Frozen, FrozenLoadResult,
+    Loader, Merged, Raw, TrustedConfig, TrustedLoader, Validated, ValidationReport,
+    detect_unknown_fields,
 };
+pub use path::{resolve_and_validate, PathPolicy, PathWitness};
 pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
 pub use ocel::export_events_to_ocel;
 // Note: export_events_to_ocel is a no-op stub unless the `wasm4pm-compat` feature is enabled.
@@ -443,17 +446,6 @@ pub use validation::{
 // ---------------------------------------------------------------------------
 // Compile-fail invariant tests (BRCE: invariant / boundary)
 // ---------------------------------------------------------------------------
-
-/// `AdmittedConfig<T>` is not yet constructible — it is deferred until
-/// `ConfigWitness` and `q_config` exist.
-///
-/// ```compile_fail
-/// // BRCE category: invariant/boundary
-/// // AdmittedConfig<T> requires ConfigWitness, which is deferred to WP-4+.
-/// use star_toml::AdmittedConfig;
-/// let _x: AdmittedConfig<()>;
-/// ```
-pub mod _compile_fail_admitted_config {}
 
 /// `save_canonical` is only available on `Config<Validated<T>>` and
 /// `Config<Frozen<T>>` — it is rejected at compile time for `Config<Raw>`.

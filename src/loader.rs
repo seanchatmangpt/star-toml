@@ -1422,6 +1422,252 @@ impl TrustedLoader {
 }
 
 // ---------------------------------------------------------------------------
+// ST-109: ConfigWitness
+// ---------------------------------------------------------------------------
+
+/// A cryptographic witness that binds provenance reports + validation fitness
+/// to the canonical config bytes.
+///
+/// Use [`ConfigWitness::compute`] to produce one from a [`FrozenLoadResult`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigWitness {
+    /// BLAKE3 hex of all inputs: source digests, layer order, env entries,
+    /// validation fitness, and canonical config bytes.
+    pub hash: String,
+}
+
+impl ConfigWitness {
+    /// Compute a witness from the full provenance context.
+    ///
+    /// Hash inputs (joined with `|`):
+    /// 1. Source digests concatenated (sorted by `source_id`)
+    /// 2. Last `layer_order_digest` (or empty string)
+    /// 3. Accepted env entries sorted: `"key=path:raw_digest"`
+    /// 4. `format!("{:.6}", validation_fitness)`
+    /// 5. `canonical_bytes`
+    pub fn compute(
+        source_report: &SourceReport,
+        layer_report: &LayerReport,
+        env_report: &EnvOverrideReport,
+        validation_fitness: f64,
+        canonical_bytes: &[u8],
+    ) -> Self {
+        let mut parts: Vec<String> = Vec::new();
+
+        // 1. Source digests sorted by source_id
+        let mut source_entries: Vec<_> = source_report.entries.iter().collect();
+        source_entries.sort_by_key(|e| e.source_id);
+        let source_part: String = source_entries
+            .iter()
+            .filter_map(|e| e.digest.as_deref())
+            .collect::<Vec<_>>()
+            .join(",");
+        parts.push(source_part);
+
+        // 2. Last layer_order_digest
+        let last_lod = layer_report
+            .entries
+            .last()
+            .map(|e| e.layer_order_digest.as_str())
+            .unwrap_or("")
+            .to_owned();
+        parts.push(last_lod);
+
+        // 3. Accepted env entries sorted
+        let mut env_entries: Vec<String> = env_report
+            .entries
+            .iter()
+            .filter(|e| e.accepted)
+            .map(|e| format!("{}={}:{}", e.raw_env_key, e.mapped_path, e.raw_value_digest))
+            .collect();
+        env_entries.sort();
+        parts.push(env_entries.join(","));
+
+        // 4. Validation fitness
+        parts.push(format!("{:.6}", validation_fitness));
+
+        // 5. Canonical bytes (as hex to avoid embedding binary)
+        parts.push(blake3_hex(canonical_bytes));
+
+        let joined = parts.join("|");
+        let hash = blake3_hex(joined.as_bytes());
+        Self { hash }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ST-106: detect_unknown_fields
+// ---------------------------------------------------------------------------
+
+/// Compare `original` (raw TOML value) against `typed` (re-serialized from the
+/// deserialized struct) to find keys present in `original` but absent in `typed`.
+///
+/// Returns dot-separated paths for unknown fields.
+///
+/// # Errors
+///
+/// Returns an empty vec if re-serialization fails.
+pub fn detect_unknown_fields<T: Serialize>(original: &Value, typed: &T) -> Vec<String> {
+    let typed_val = match toml::Value::try_from(typed) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    let mut unknown = Vec::new();
+    collect_unknown_keys(original, &typed_val, "", &mut unknown);
+    unknown
+}
+
+fn collect_unknown_keys(
+    original: &Value,
+    typed: &Value,
+    prefix: &str,
+    unknown: &mut Vec<String>,
+) {
+    if let (Value::Table(orig_t), Value::Table(typed_t)) = (original, typed) {
+        for (k, v) in orig_t {
+            let path = if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
+            if let Some(typed_v) = typed_t.get(k) {
+                collect_unknown_keys(v, typed_v, &path, unknown);
+            } else {
+                unknown.push(path);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ST-102: AdmittedConfig
+// ---------------------------------------------------------------------------
+
+/// The terminal admission envelope: a validated, witnessed, reportable config.
+///
+/// Produced by [`TrustedLoader::load_admitted`].
+pub struct AdmittedConfig<T> {
+    /// The deserialized and validated configuration value.
+    pub value: T,
+    /// Cryptographic witness binding all provenance to the canonical bytes.
+    pub witness: ConfigWitness,
+    /// Source provenance report.
+    pub source_report: SourceReport,
+    /// Layer merge provenance report.
+    pub layer_report: LayerReport,
+    /// Env-override provenance report.
+    pub env_report: EnvOverrideReport,
+    /// Final cumulative field-provenance map.
+    pub global_winner_map: WinnerMap,
+}
+
+impl<T> std::ops::Deref for AdmittedConfig<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl TrustedLoader {
+    /// Run the full admission pipeline and return an [`AdmittedConfig<T>`].
+    ///
+    /// Equivalent to [`load_frozen`](TrustedLoader::load_frozen) plus computing
+    /// a [`ConfigWitness`] over the canonical serialization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any required file is missing, parsing fails, or
+    /// validation produces `Error`-or-above findings.
+    pub fn load_admitted<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
+        self,
+    ) -> Result<AdmittedConfig<T>> {
+        let result = self.load_frozen::<T>()?;
+        build_admitted(result)
+    }
+
+    /// Like [`load_admitted`](TrustedLoader::load_admitted) but also runs
+    /// [`detect_unknown_fields`]: if any unknown fields are found, returns
+    /// `Err(Error::Invalid(...))` with code `"unknown_field"`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any required file is missing, parsing fails,
+    /// validation fails, or unknown fields are detected.
+    pub fn load_admitted_strict<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
+        mut self,
+    ) -> Result<AdmittedConfig<T>> {
+        // We need the original merged value to compare against.
+        // Re-run load_bounded + apply_env to get both original value and typed result.
+        let env_prefix = self.loader.env_prefix.take();
+        let bounded = self.loader.load_bounded()?;
+        let env_resolved = bounded.apply_env(env_prefix.as_deref())?;
+
+        let original_value = env_resolved.state.value.clone();
+        let source_report = env_resolved.state.source_report.clone();
+        let layer_report = env_resolved.state.layer_report.clone();
+        let env_report = env_resolved.state.env_report.clone();
+        let global_winner_map = env_resolved.state.global_winner_map.clone();
+
+        let deser = env_resolved.deserialize::<T>()?;
+        let typed_ref = deser.get();
+
+        // Detect unknown fields before consuming
+        let unknown = detect_unknown_fields(&original_value, typed_ref);
+        if !unknown.is_empty() {
+            let msg = format!("unknown fields: {}", unknown.join(", "));
+            let errors = vec![crate::validation::ValidationError {
+                loc: crate::validation::Loc(vec![]),
+                kind: crate::validation::ErrorKind::Predicate { code: "unknown_field" },
+                severity: crate::validation::Severity::Error,
+                input: Some(unknown.join(", ")),
+                msg,
+            }];
+            let errs = crate::validation::ValidationErrors {
+                errors,
+                title: None,
+                checks_run: 1,
+            };
+            return Err(Error::Invalid(errs));
+        }
+
+        let validated = deser.validate()?;
+        let config = validated.freeze();
+
+        let frozen_result = FrozenLoadResult {
+            config,
+            source_report,
+            layer_report,
+            env_report,
+            global_winner_map,
+        };
+        build_admitted(frozen_result)
+    }
+}
+
+fn build_admitted<T: Serialize>(result: FrozenLoadResult<T>) -> Result<AdmittedConfig<T>> {
+    let FrozenLoadResult { config, source_report, layer_report, env_report, global_winner_map } =
+        result;
+
+    // Serialize to canonical bytes
+    let mut canonical_val = toml::Value::try_from(config.get()).map_err(Error::from)?;
+    sort_toml_value(&mut canonical_val);
+    let canonical_str = toml::to_string(&canonical_val).map_err(Error::from)?;
+    let canonical_bytes = canonical_str.as_bytes();
+
+    // Compute validation fitness (all valid since load_frozen succeeded)
+    let validation_fitness = 1.0_f64;
+
+    let witness = ConfigWitness::compute(
+        &source_report,
+        &layer_report,
+        &env_report,
+        validation_fitness,
+        canonical_bytes,
+    );
+
+    // Extract value from frozen config
+    let value = config.state.0;
+
+    Ok(AdmittedConfig { value, witness, source_report, layer_report, env_report, global_winner_map })
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
