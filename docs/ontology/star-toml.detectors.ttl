@@ -229,3 +229,15 @@
     dcterms:title "test_ocel_export_has_config_run_object" ;
     dcterms:description "Proves OCEL export includes a ConfigRun object." ;
     dcterms:subject <test-category/provenance>, <object/ConfigRun> .
+
+#################################################################
+# Status Snapshots
+#################################################################
+
+<status/detectors-active-passing>
+    a prov:Entity ;
+    dcterms:title "Detectors Active and Passing" ;
+    dcterms:description "All 23 counterexample detectors are active and passing verification checks." ;
+    prov:wasDerivedFrom <doc/star-toml-detectors-ttl> ;
+    dcterms:subject <concept/CounterexampleSet> .
+

@@ -106,7 +106,7 @@ The **Counterexample Set (Section 16)** defines the release criteria. The follow
 | `unreported_layer_override` | Silent value override by higher priority layer | [ST-104](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-104_layer_bounds.md) | Unit & Integration |
 | `env_override_without_prefix` | Ambient env vars polluting config | [ST-105](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-105_env_bounds.md) | Unit & Chaos |
 | `env_override_not_reported` | Ambient env override applied but not in witness | [ST-105](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-105_env_bounds.md) | Unit & Integration |
-| `unknown_field_accepted_in_trusted` | Permissive deserialization inside security bounds | [ST-106](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-106_type_bounds.md) | Unit & Integration |
+| `unknown_field_accepted_in_trusted_mode` | Permissive deserialization inside security bounds | [ST-106](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-106_type_bounds.md) | Unit & Integration |
 | `validation_not_run` | Bypassing validation phase in the lifecycle | [ST-101](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-101_typestate.md) | E2E Integration |
 | `validation_error_without_path` | Semantic error lacking precise tree position | [ST-107](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-107_validation_bounds.md) | Unit & Integration |
 | `fatal_error_downgraded` | Softening a Fatal severity failure to Warning | [ST-107](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-107_validation_bounds.md) | Unit |
@@ -121,3 +121,4 @@ The **Counterexample Set (Section 16)** defines the release criteria. The follow
 | `witness_missing_validation_report` | Witness digest ignores validation error history | [ST-109](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-109_rewrite_witness_bounds.md) | Unit & Integration |
 | `witness_nondeterministic` | Running the same config results in different hashes | [ST-109](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-109_rewrite_witness_bounds.md) | Unit & Benchmarks |
 | `downstream_policy_inside_star_toml` | Embedding application logic in config parser | [ST-111](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-111_verification_ladder.md) | Architecture Audit |
+| `ocel_treated_as_standing_authority` | Treating OCEL lifecycle log as independent config standing authority | [ST-111](file:///Users/sac/star-toml/docs/jira/v26.6.28/ST-111_verification_ladder.md) | Integration & Features |

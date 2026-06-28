@@ -10,8 +10,7 @@
 //! 3. **Analytics** — Van der Aalst-grade extensions: conformance fitness, variant
 //!    fingerprinting, DECLARE cross-field constraints, severity stratification.
 //!
-//! Dependencies: `serde`, `toml`, `thiserror`. No async, no proc-macros, no allocator
-//! tricks, no crypto.
+//! Dependencies: `serde`, `toml`, `thiserror`, `blake3`, `wasm4pm-compat`, and `star-toml-derive` procedural macros. No async, no allocator tricks.
 //!
 //! ---
 //!

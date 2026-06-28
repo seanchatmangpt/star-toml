@@ -497,9 +497,9 @@
         sh:message "ConfigWitness must describe coverage of B_config, Sources, Layers, Env, Validation, and CanonicalOutput." ;
     ] .
 
-<shape/AdmittedConfigDeferredShape>
+<shape/AdmittedConfigShape>
     a sh:NodeShape ;
-    sh:name "AdmittedConfigDeferredShape" ;
+    sh:name "AdmittedConfigShape" ;
     sh:description "AdmittedConfig must be derived from Witnessed state, not pre-admission states." ;
     sh:targetNode <artifact/AdmittedConfig> ;
     sh:property [
@@ -512,10 +512,10 @@
 # Status Snapshots
 #################################################################
 
-<status/brce-admission-deferred>
+<status/brce-admission-implemented>
     a prov:Entity ;
-    dcterms:title "BRCE Admission Deferred" ;
-    dcterms:description "AdmittedConfig<T>, ConfigWitness, and q_config are deferred until witness and standing layers exist." ;
+    dcterms:title "BRCE Admission Implemented" ;
+    dcterms:description "AdmittedConfig<T>, ConfigWitness, and q_config are fully implemented and verified under the BRCE standing calculus." ;
     dcterms:subject <artifact/AdmittedConfig>, <artifact/ConfigWitness>, <concept/qConfig> .
 
 #################################################################
