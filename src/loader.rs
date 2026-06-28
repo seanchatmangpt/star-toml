@@ -1534,6 +1534,7 @@ fn collect_unknown_keys(
 /// The terminal admission envelope: a validated, witnessed, reportable config.
 ///
 /// Produced by [`TrustedLoader::load_admitted`].
+#[derive(Debug)]
 pub struct AdmittedConfig<T> {
     /// The deserialized and validated configuration value.
     pub value: T,
@@ -1559,29 +1560,16 @@ impl<T> std::ops::Deref for AdmittedConfig<T> {
 impl TrustedLoader {
     /// Run the full admission pipeline and return an [`AdmittedConfig<T>`].
     ///
-    /// Equivalent to [`load_frozen`](TrustedLoader::load_frozen) plus computing
-    /// a [`ConfigWitness`] over the canonical serialization.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if any required file is missing, parsing fails, or
-    /// validation produces `Error`-or-above findings.
-    pub fn load_admitted<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
-        self,
-    ) -> Result<AdmittedConfig<T>> {
-        let result = self.load_frozen::<T>()?;
-        build_admitted(result)
-    }
-
-    /// Like [`load_admitted`](TrustedLoader::load_admitted) but also runs
-    /// [`detect_unknown_fields`]: if any unknown fields are found, returns
-    /// `Err(Error::Invalid(...))` with code `"unknown_field"`.
+    /// Unknown fields in the TOML source are rejected with code `"unknown_field"`
+    /// (CE-8: trusted admission must not silently accept unknown fields).
+    /// Use [`load_admitted_exploratory`](TrustedLoader::load_admitted_exploratory)
+    /// to allow unknown fields during development.
     ///
     /// # Errors
     ///
     /// Returns an error if any required file is missing, parsing fails,
     /// validation fails, or unknown fields are detected.
-    pub fn load_admitted_strict<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
+    pub fn load_admitted<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
         mut self,
     ) -> Result<AdmittedConfig<T>> {
         // We need the original merged value to compare against.
@@ -1602,18 +1590,28 @@ impl TrustedLoader {
         // Detect unknown fields before consuming
         let unknown = detect_unknown_fields(&original_value, typed_ref);
         if !unknown.is_empty() {
-            let msg = format!("unknown fields: {}", unknown.join(", "));
-            let errors = vec![crate::validation::ValidationError {
-                loc: crate::validation::Loc(vec![]),
-                kind: crate::validation::ErrorKind::Predicate { code: "unknown_field" },
-                severity: crate::validation::Severity::Error,
-                input: Some(unknown.join(", ")),
-                msg,
-            }];
+            // Emit one path-precise error per unknown field (CE-10 fix)
+            let errors: Vec<crate::validation::ValidationError> = unknown
+                .iter()
+                .map(|field_path| {
+                    let segments = field_path
+                        .split('.')
+                        .map(|seg| crate::validation::LocSegment::Key(seg.to_owned()))
+                        .collect();
+                    crate::validation::ValidationError {
+                        loc: crate::validation::Loc(segments),
+                        kind: crate::validation::ErrorKind::Predicate { code: "unknown_field" },
+                        severity: crate::validation::Severity::Error,
+                        input: Some(field_path.clone()),
+                        msg: format!("unknown field: `{field_path}`"),
+                    }
+                })
+                .collect();
+            let checks_run = errors.len();
             let errs = crate::validation::ValidationErrors {
                 errors,
                 title: None,
-                checks_run: 1,
+                checks_run,
             };
             return Err(Error::Invalid(errs));
         }
@@ -1629,6 +1627,32 @@ impl TrustedLoader {
             global_winner_map,
         };
         build_admitted(frozen_result)
+    }
+
+    /// Like [`load_admitted`] but does **not** reject unknown fields.
+    ///
+    /// Intended for exploratory/development use where the schema is still being
+    /// defined. Do not use in production trusted paths.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any required file is missing, parsing fails, or
+    /// validation produces `Error`-or-above findings.
+    pub fn load_admitted_exploratory<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
+        self,
+    ) -> Result<AdmittedConfig<T>> {
+        let result = self.load_frozen::<T>()?;
+        build_admitted(result)
+    }
+
+    /// Alias for [`load_admitted`] — kept for call-site compatibility.
+    ///
+    /// Prefer `load_admitted()` directly; this alias will be removed in v26.7.
+    #[deprecated(since = "26.6.28", note = "use load_admitted() — it is now strict by default")]
+    pub fn load_admitted_strict<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
+        self,
+    ) -> Result<AdmittedConfig<T>> {
+        self.load_admitted::<T>()
     }
 }
 

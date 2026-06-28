@@ -554,18 +554,21 @@ fn test_load_admitted_succeeds() {
 #[test]
 fn test_load_admitted_strict_rejects_unknown_fields() {
     // BRCE: falsification
-    // load_admitted_strict must reject configs with fields not in the struct.
+    // load_admitted() is strict by default — unknown fields must be rejected.
+    // (load_admitted_strict is a deprecated alias for the same behaviour.)
     let dir = TempDir::new().unwrap();
     // Cfg only has name and port — extra_field is unknown
     write_toml(&dir, "cfg.toml", "name = \"app\"\nport = 8080\nextra_field = \"oops\"\n");
 
     let result = TrustedLoader::new()
         .layer_file(dir.path().join("cfg.toml"))
-        .load_admitted_strict::<Cfg>();
+        .load_admitted::<Cfg>();
 
-    assert!(result.is_err(), "unknown fields must cause load_admitted_strict to fail");
+    assert!(result.is_err(), "unknown fields must cause load_admitted to fail");
     if let Err(star_toml::Error::Invalid(errs)) = result {
         assert!(errs.errors().iter().any(|e| e.code() == "unknown_field"));
+        // Each error must carry a path-precise Loc, never root
+        assert!(errs.errors().iter().all(|e| !e.loc.is_root()), "unknown-field errors must be path-precise");
     } else {
         panic!("Expected Error::Invalid with unknown_field");
     }

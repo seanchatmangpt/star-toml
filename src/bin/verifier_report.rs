@@ -1,4 +1,4 @@
-//! Verifier binary for the 22 counterexamples.
+//! Verifier binary for the 23 counterexamples.
 //!
 //! Each counterexample is checked inline. Pass/fail is tracked and written
 //! to `VERIFIER_REPORT.md`. Exits non-zero if any counterexample is still active.
@@ -155,13 +155,13 @@ fn run_checks() -> Vec<Check> {
     }));
 
     // 8. unknown_field_accepted_in_trusted_mode
+    // load_admitted() is strict by default — unknown fields must be rejected
     results.push(check!("unknown_field_accepted_in_trusted_mode", {
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"ok\"\nport = 8080\nextra = \"bad\"\n");
         let r = TrustedLoader::new()
             .layer_file(&dir.join("c.toml"))
-            .load_admitted_strict::<Cfg>();
-        // strict mode must reject
+            .load_admitted::<Cfg>();
         r.is_err()
     }));
 
@@ -177,18 +177,38 @@ fn run_checks() -> Vec<Check> {
     }));
 
     // 10. validation_error_without_path
+    // Standard validation errors must have path-precise Loc.
+    // Unknown-field errors (from load_admitted) must also have path-precise Loc,
+    // not root Loc(vec![]).
     results.push(check!("validation_error_without_path", {
         let dir = make_temp_dir();
+        // Check 1: standard validation errors have precise paths
         write_toml(&dir, "c.toml", "name = \"\"\nport = 80\n");
-        let err = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_frozen::<Cfg>()
-            .unwrap_err();
-        if let Error::Invalid(errs) = err {
-            errs.errors().iter().all(|e| !e.loc.is_root())
-        } else {
-            false
-        }
+        let std_ok = {
+            let err = TrustedLoader::new()
+                .layer_file(&dir.join("c.toml"))
+                .load_frozen::<Cfg>()
+                .unwrap_err();
+            if let Error::Invalid(errs) = err {
+                errs.errors().iter().all(|e| !e.loc.is_root())
+            } else {
+                false
+            }
+        };
+        // Check 2: unknown-field errors have per-field Loc, not root
+        write_toml(&dir, "uf.toml", "name = \"ok\"\nport = 8080\nextra = \"bad\"\n");
+        let uf_ok = {
+            let err = TrustedLoader::new()
+                .layer_file(&dir.join("uf.toml"))
+                .load_admitted::<Cfg>()
+                .unwrap_err();
+            if let Error::Invalid(errs) = err {
+                errs.errors().iter().all(|e| !e.loc.is_root())
+            } else {
+                false
+            }
+        };
+        std_ok && uf_ok
     }));
 
     // 11. fatal_error_downgraded
@@ -203,10 +223,12 @@ fn run_checks() -> Vec<Check> {
     }));
 
     // 12. path_traversal_accepted
+    // Must also catch Windows-style separator bypass: "foo\..\..\etc\passwd" on Unix
     results.push(check!("path_traversal_accepted", {
         let source = std::path::Path::new("/tmp/config.toml");
-        let r = resolve_and_validate("../etc/passwd", source, &PathPolicy::BlockForbidden);
-        r.is_err()
+        let unix_traversal = resolve_and_validate("../etc/passwd", source, &PathPolicy::BlockForbidden);
+        let win_traversal = resolve_and_validate("foo\\..\\..\\etc\\passwd", source, &PathPolicy::BlockForbidden);
+        unix_traversal.is_err() && win_traversal.is_err()
     }));
 
     // 13. null_byte_path_accepted
@@ -329,6 +351,24 @@ fn run_checks() -> Vec<Check> {
         let blocked = resolve_and_validate("/etc/shadow", source, &PathPolicy::BlockForbidden);
         let allowed = resolve_and_validate("local/data.csv", source, &PathPolicy::BlockForbidden);
         blocked.is_err() && allowed.is_ok()
+    }));
+
+    // 23. ocel_treated_as_standing_authority
+    // OCEL export (export_events_to_ocel) records lifecycle history only.
+    // It must not compute q_config or grant admission standing.
+    // Verified structurally: AdmittedConfig is produced only by load_admitted(),
+    // never by OCEL export. The OCEL function signature returns () without the
+    // wasm4pm-compat feature (no-op stub) and returns OcelLog (not AdmittedConfig)
+    // with the feature — neither path can return or modify AdmittedConfig.
+    results.push(check!("ocel_treated_as_standing_authority", {
+        // Structural check: export_events_to_ocel returns () (stub), which cannot
+        // carry AdmittedConfig. This is a compile-time guarantee; we verify it by
+        // confirming the function returns the unit type in no-feature mode.
+        let events: Vec<star_toml::events::AdmissionEvent> = Vec::new();
+        let _unit: () = star_toml::ocel::export_events_to_ocel(&events);
+        // If this compiles, export_events_to_ocel returns (), not AdmittedConfig.
+        // OCEL cannot be used as a standing authority.
+        true
     }));
 
     results
