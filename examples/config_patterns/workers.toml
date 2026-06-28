@@ -1,0 +1,7 @@
+[[workers]]
+name = "email"
+threads = 4
+
+[[workers]]
+name = "image"
+threads = 8

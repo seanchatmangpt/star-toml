@@ -1,6 +1,6 @@
 # star-toml Verifier Report
 
-**Total**: 22  **Passed**: 22  **Failed**: 0
+**Total**: 23  **Passed**: 23  **Failed**: 0
 
 | # | Counterexample | Status | failset_cardinality |
 |---|----------------|--------|--------------------|
@@ -26,3 +26,4 @@
 | 20 | witness_missing_validation_report | PASS | 0 |
 | 21 | witness_nondeterministic | PASS | 0 |
 | 22 | downstream_policy_inside_star_toml | PASS | 0 |
+| 23 | ocel_treated_as_standing_authority | PASS | 0 |

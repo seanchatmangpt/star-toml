@@ -1,0 +1,5 @@
+profile = "prod"
+port = 8080
+
+[logging]
+level = "warn"

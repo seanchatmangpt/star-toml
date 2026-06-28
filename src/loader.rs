@@ -495,19 +495,19 @@ pub struct Raw(pub Value);
 
 /// Merged state of the configuration, after environment overrides.
 #[derive(Debug, Clone)]
-pub struct Merged(pub Value);
+pub struct Merged(Value);
 
 /// Deserialized state of the configuration, mapped to a struct `T`.
 #[derive(Debug, Clone)]
-pub struct Deserialized<T>(pub T);
+pub struct Deserialized<T>(T);
 
 /// Validated state of the configuration, after satisfying invariants.
 #[derive(Debug, Clone)]
-pub struct Validated<T>(pub T);
+pub struct Validated<T>(T);
 
 /// Frozen, immutable state of the configuration.
 #[derive(Debug, Clone)]
-pub struct Frozen<T>(pub T);
+pub struct Frozen<T>(T);
 
 /// A configuration wrapper carrying state `S` and the path of the last loaded file.
 #[derive(Debug, Clone)]
@@ -1421,14 +1421,21 @@ impl TrustedLoader {
 /// to the canonical config bytes.
 ///
 /// Use [`ConfigWitness::compute`] to produce one from a [`FrozenLoadResult`].
+/// The inner hash is not publicly settable — use [`ConfigWitness::hash`] to read it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigWitness {
     /// BLAKE3 hex of all inputs: source digests, layer order, env entries,
     /// validation fitness, and canonical config bytes.
-    pub hash: String,
+    hash: String,
 }
 
 impl ConfigWitness {
+    /// The BLAKE3 hex digest that binds all provenance inputs.
+    #[must_use]
+    pub fn hash(&self) -> &str {
+        &self.hash
+    }
+
     /// Compute a witness from the full provenance context.
     ///
     /// Hash inputs (joined with `|`):
@@ -1515,15 +1522,30 @@ fn collect_unknown_keys(
     prefix: &str,
     unknown: &mut Vec<String>,
 ) {
-    if let (Value::Table(orig_t), Value::Table(typed_t)) = (original, typed) {
-        for (k, v) in orig_t {
-            let path = if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
-            if let Some(typed_v) = typed_t.get(k) {
-                collect_unknown_keys(v, typed_v, &path, unknown);
-            } else {
-                unknown.push(path);
+    match (original, typed) {
+        (Value::Table(orig_t), Value::Table(typed_t)) => {
+            for (k, v) in orig_t {
+                let path = if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
+                if let Some(typed_v) = typed_t.get(k) {
+                    collect_unknown_keys(v, typed_v, &path, unknown);
+                } else {
+                    unknown.push(path);
+                }
             }
         }
+        // Traverse arrays element-wise so [[table]] arrays of tables are checked.
+        (Value::Array(orig_arr), Value::Array(typed_arr)) => {
+            for (i, orig_item) in orig_arr.iter().enumerate() {
+                let path = format!("{prefix}[{i}]");
+                if let Some(typed_item) = typed_arr.get(i) {
+                    collect_unknown_keys(orig_item, typed_item, &path, unknown);
+                }
+                // If typed array is shorter, the extra items are unknown by position.
+                // We don't flag them as individual field unknowns here because the
+                // structural mismatch is caught by serde deserialization.
+            }
+        }
+        _ => {}
     }
 }
 
@@ -1533,21 +1555,53 @@ fn collect_unknown_keys(
 
 /// The terminal admission envelope: a validated, witnessed, reportable config.
 ///
-/// Produced by [`TrustedLoader::load_admitted`].
+/// Produced by [`TrustedLoader::load_admitted`]. Fields are private to prevent
+/// external forgery — use the accessor methods to read them.
 #[derive(Debug)]
 pub struct AdmittedConfig<T> {
+    value: T,
+    witness: ConfigWitness,
+    source_report: SourceReport,
+    layer_report: LayerReport,
+    env_report: EnvOverrideReport,
+    global_winner_map: WinnerMap,
+}
+
+impl<T> AdmittedConfig<T> {
     /// The deserialized and validated configuration value.
-    pub value: T,
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
     /// Cryptographic witness binding all provenance to the canonical bytes.
-    pub witness: ConfigWitness,
+    pub fn witness(&self) -> &ConfigWitness {
+        &self.witness
+    }
+
     /// Source provenance report.
-    pub source_report: SourceReport,
+    pub fn source_report(&self) -> &SourceReport {
+        &self.source_report
+    }
+
     /// Layer merge provenance report.
-    pub layer_report: LayerReport,
+    pub fn layer_report(&self) -> &LayerReport {
+        &self.layer_report
+    }
+
     /// Env-override provenance report.
-    pub env_report: EnvOverrideReport,
-    /// Final cumulative field-provenance map.
-    pub global_winner_map: WinnerMap,
+    pub fn env_report(&self) -> &EnvOverrideReport {
+        &self.env_report
+    }
+
+    /// Final cumulative field-provenance map (field path → winning layer id).
+    pub fn global_winner_map(&self) -> &WinnerMap {
+        &self.global_winner_map
+    }
+
+    /// Consume the envelope and return the inner value, discarding provenance.
+    pub fn into_value(self) -> T {
+        self.value
+    }
 }
 
 impl<T> std::ops::Deref for AdmittedConfig<T> {

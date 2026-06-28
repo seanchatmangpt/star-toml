@@ -261,7 +261,7 @@ fn run_checks() -> Vec<Check> {
             .layer_file(&dir.join("c.toml"))
             .load_admitted::<Cfg>()
             .unwrap();
-        r1.witness.hash == r2.witness.hash
+        r1.witness().hash() == r2.witness().hash()
     }));
 
     // 16. comment_preservation_claim_unproven
@@ -320,7 +320,7 @@ fn run_checks() -> Vec<Check> {
             .load_admitted::<Cfg>()
             .unwrap();
         // Witness includes validation fitness
-        !r.witness.hash.is_empty()
+        !r.witness().hash().is_empty()
     }));
 
     // 21. witness_nondeterministic
@@ -331,15 +331,16 @@ fn run_checks() -> Vec<Check> {
             .layer_file(&dir.join("c.toml"))
             .load_admitted::<Cfg>()
             .unwrap()
-            .witness
-            .hash
-            .clone();
+            .witness()
+            .hash()
+            .to_owned();
         let h2 = TrustedLoader::new()
             .layer_file(&dir.join("c.toml"))
             .load_admitted::<Cfg>()
             .unwrap()
-            .witness
-            .hash;
+            .witness()
+            .hash()
+            .to_owned();
         h1 == h2
     }));
 
@@ -354,21 +355,24 @@ fn run_checks() -> Vec<Check> {
     }));
 
     // 23. ocel_treated_as_standing_authority
-    // OCEL export (export_events_to_ocel) records lifecycle history only.
-    // It must not compute q_config or grant admission standing.
-    // Verified structurally: AdmittedConfig is produced only by load_admitted(),
-    // never by OCEL export. The OCEL function signature returns () without the
-    // wasm4pm-compat feature (no-op stub) and returns OcelLog (not AdmittedConfig)
-    // with the feature — neither path can return or modify AdmittedConfig.
+    // OCEL export records lifecycle history only; it must not produce AdmittedConfig
+    // or compute q_config. Verified: export_events_to_ocel returns OcelLog, never
+    // AdmittedConfig. No q_config attribute may appear on any OCEL object or event.
     results.push(check!("ocel_treated_as_standing_authority", {
-        // Structural check: export_events_to_ocel returns () (stub), which cannot
-        // carry AdmittedConfig. This is a compile-time guarantee; we verify it by
-        // confirming the function returns the unit type in no-feature mode.
-        let events: Vec<star_toml::events::AdmissionEvent> = Vec::new();
-        let _unit: () = star_toml::ocel::export_events_to_ocel(&events);
-        // If this compiles, export_events_to_ocel returns (), not AdmittedConfig.
-        // OCEL cannot be used as a standing authority.
-        true
+        use star_toml::events::{AdmissionEvent, ConfigEventKind};
+        let event = AdmissionEvent::new(
+            "run_verify",
+            "evt_001",
+            1,
+            ConfigEventKind::ConfigValidated,
+            vec![],
+            vec![],
+        );
+        let log = star_toml::ocel::export_events_to_ocel(&[event]);
+        // OCEL must not carry q_config on any object or event
+        let no_q_on_objects = log.objects().iter().all(|o| o.attributes().iter().all(|a| a.key != "q_config"));
+        let no_q_on_events = log.events().iter().all(|e| e.attributes().iter().all(|a| a.key != "q_config"));
+        no_q_on_objects && no_q_on_events
     }));
 
     results
