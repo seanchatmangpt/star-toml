@@ -874,8 +874,6 @@ impl TrustedLoader {
 /// This is the entry point for the trusted pipeline. From here, apply env overrides
 /// (→ [`EnvResolved`]) then continue the lifecycle.
 ///
-/// `AdmittedConfig<T>`, `ConfigWitness`, and `q_config` are deferred to a later
-/// work package and do not exist yet.
 #[derive(Debug, Clone)]
 pub struct BoundedSources {
     /// Merged TOML value from all file layers (env not yet applied).
@@ -913,7 +911,6 @@ pub struct EnvResolved {
 /// the loading pipeline. Designed so a future OCEL lifecycle-history export can
 /// consume `source_report`, `layer_report`, and `env_report` directly.
 ///
-/// `AdmittedConfig<T>`, `ConfigWitness`, and `q_config` are deferred.
 #[derive(Debug)]
 pub struct FrozenLoadResult<T> {
     /// The frozen, validated configuration.
@@ -1388,11 +1385,6 @@ impl TrustedLoader {
     /// Returns [`FrozenLoadResult<T>`] which bundles the frozen config with all three
     /// provenance reports. The reports are designed to feed a future OCEL
     /// lifecycle-history export.
-    ///
-    /// # Deferred
-    ///
-    /// `AdmittedConfig<T>`, `ConfigWitness`, and `q_config` are not yet implemented.
-    /// `load_admitted()` is deferred until the witness layer exists.
     ///
     /// # Errors
     ///
