@@ -56,5 +56,6 @@ strip = true
 [workspace]
 members = [
     ".",
-    "star-toml-derive"
+    "star-toml-derive",
+    "star-toml-lsp",
 ]

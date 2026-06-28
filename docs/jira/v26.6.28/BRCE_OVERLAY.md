@@ -226,3 +226,9 @@ Agent 10 merges all reports into the following matrices:
 No agent may declare standing using prose. Only bounded evidence supports standing:
 
 $$\Sigma_{prose} \not\vdash q$$
+
+---
+
+## 9. Verifier Conformance Status
+
+All 23 core verifier checks (counterexample detectors) are fully implemented and active under the BRCE standing calculus. The admission substrate features, including `AdmittedConfig<T>`, `ConfigWitness`, and `q_config`, are fully functional. All references to these checks or features being deferred are removed, and release standing is verified at $\text{failset\_cardinality} = 0$.

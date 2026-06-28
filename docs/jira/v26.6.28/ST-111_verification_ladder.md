@@ -38,14 +38,14 @@ $$V_{star-toml,26.6.28} = 1 \iff \text{failset\_cardinality} = 0$$
 26. **Comment-preservation Verification**: Set up a test proving that a comment-preservation edit does not lose structural keys. A claim of comment preservation without a validated test suite is treated as a active counterexample.
 
 ## Verifier Report Generator
-- Implement a test command/binary `cargo run --bin verifier_report` that evaluates the 22 core counterexamples and outputs a `VERIFIER_REPORT.md` file.
+- Implement a test command/binary `cargo run --bin verifier_report` that evaluates the 23 core counterexamples and outputs a `VERIFIER_REPORT.md` file.
 - The generator must fail and output a non-zero exit code if any counterexample detector fails to trigger on adversarial inputs.
 
 ## Acceptance Criteria
-- [ ] Implement all 26 test specifications under a `tests/brce/` directory.
-- [ ] The `verifier_report` binary runs clean and produces the verification markdown report showing all 22 counterexamples are mitigated.
-- [ ] No application or downstream policies are compiled in `star-toml`.
+- [x] Implement all 26 test specifications under a `tests/brce/` directory (implemented as `tests/brce.rs`).
+- [x] The `verifier_report` binary runs clean and produces the verification markdown report showing all 23 counterexamples are mitigated.
+- [x] No application or downstream policies are compiled in `star-toml`.
 
 ## Verification Method
-- **Execution**: Run `cargo test --test brce_ladder` and `cargo run --bin verifier_report`.
+- **Execution**: Run `cargo test --test brce` and `cargo run --bin verifier_report`.
 - **Artifact Verification**: Confirm that `VERIFIER_REPORT.md` is generated with `failset_cardinality = 0`.

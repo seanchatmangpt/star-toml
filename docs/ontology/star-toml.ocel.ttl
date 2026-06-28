@@ -101,13 +101,13 @@
 <event/WitnessGenerated>
     a prov:Activity ;
     skos:prefLabel "WitnessGenerated" ;
-    dcterms:description "Lifecycle event recording witness generation. Deferred until ConfigWitness exists." ;
+    dcterms:description "Lifecycle event recording witness generation (conceptual / deferred in core event enum)." ;
     prov:used <artifact/ConfigWitness> .
 
 <event/DetectorEvaluated>
     a prov:Activity ;
     skos:prefLabel "DetectorEvaluated" ;
-    dcterms:description "Lifecycle event recording evaluation of a counterexample detector." .
+    dcterms:description "Lifecycle event recording evaluation of a counterexample detector (conceptual / deferred in core event enum)." .
 
 #################################################################
 # OCEL Object Concepts
@@ -151,7 +151,7 @@
 <object/ConfigWitness>
     a skos:Concept ;
     skos:prefLabel "ConfigWitness" ;
-    skos:definition "OCEL object representing receipt-ready witness evidence once witness layer exists." .
+    skos:definition "OCEL object representing receipt-ready witness evidence (mapped to ConfigObject in current adapter version)." .
 
 #################################################################
 # SHACL Shapes

@@ -1,0 +1,49 @@
+[package]
+name = "star-toml-lsp"
+version = "26.6.28"
+edition = "2021"
+rust-version = "1.82"
+authors = ["Sean Chatman <sean@chatmangpt.com>"]
+license = "MIT"
+description = "Language server for *.toml config files validated by star-toml"
+repository = "https://github.com/seanchatmangpt/star-toml"
+
+[dependencies]
+star-toml = { path = "..", version = "26.6.28" }
+lsp-max = "26.6.24"
+lsp-max-protocol = "26.6.9"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+toml = { version = "1.1", features = ["preserve_order"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+url = "2"
+anyhow = "1"
+blake3 = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "star-toml-lsp"
+path = "src/main.rs"
+
+[package.metadata.claude-code]
+type = "language-server"
+marketplace_plugin_id = "star-toml-lsp"
+marketplace_plugin_name = "star-toml Language Server"
+marketplace_display_name = "star-toml (*.toml)"
+marketplace_description = "Diagnostics, completion, hover, and document symbols for *.toml files validated by star-toml"
+marketplace_categories = ["language-support", "linting"]
+marketplace_minimum_claude_code_version = "0.9.0"
+marketplace_supported_languages = ["toml"]
+marketplace_binary = "star-toml-lsp"
+marketplace_binary_args = []
+marketplace_capabilities = [
+  "completion",
+  "hover",
+  "document-symbol",
+  "code-action",
+  "formatting",
+]
