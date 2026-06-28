@@ -4,5 +4,5 @@
 .DS_Store
 *.tmp
 *.bak
-Cargo.lock
 VERIFIER_REPORT.md
+.star-toml/
