@@ -101,7 +101,7 @@
 //! assert!(!errs.errors()[0].repair_hint().is_empty());
 //! ```
 
-use std::{collections::BTreeMap, fmt, ops::RangeInclusive};
+use std::{collections::BTreeMap, fmt, ops::RangeInclusive, path::{Path, PathBuf}};
 
 // ---------------------------------------------------------------------------
 // Location — a path into the config tree
@@ -549,6 +549,10 @@ pub struct Validator {
     pub(crate) checks_run: usize,
     /// Severity to stamp on the next emitted error (reset after each `record`).
     pending_severity: Severity,
+    /// Optional source file path used by `check_path_safe`.
+    source_path: Option<PathBuf>,
+    /// Audit witnesses from `check_path_safe` calls.
+    pub path_witnesses: Vec<crate::path::PathWitness>,
 }
 
 impl Validator {
@@ -832,6 +836,59 @@ impl Validator {
             self.at(field, |v| {
                 v.error_with(ErrorKind::Predicate { code: "invalid_size_format" }, value, msg);
             });
+        }
+    }
+
+    /// Set the source file path used for relative path resolution in `check_path_safe`.
+    pub fn set_source_path(&mut self, p: PathBuf) {
+        self.source_path = Some(p);
+    }
+
+    /// Validate a path using the given `policy`, recording a [`PathWitness`](crate::path::PathWitness) for each call.
+    ///
+    /// Fails with:
+    /// - `null_byte_detected` — path contains `\0`
+    /// - `path_traversal_detected` — path contains `..`
+    /// - `forbidden_path` — path is in a blocked system prefix
+    /// - `sandbox_escape` — resolved path is outside the sandbox root
+    /// - `relative_only_escape` — resolved path escapes the source directory
+    pub fn check_path_safe(
+        &mut self,
+        field: &str,
+        value: &str,
+        source_path: &Path,
+        policy: crate::path::PathPolicy,
+    ) {
+        self.checks_run += 1;
+        match crate::path::resolve_and_validate(value, source_path, &policy) {
+            Ok((_, witness)) => {
+                self.path_witnesses.push(witness);
+            }
+            Err(code) => {
+                // Extract a clean code (sandbox_escape:... → sandbox_escape)
+                let clean_code: &'static str = if code.starts_with("sandbox_escape") {
+                    "sandbox_escape"
+                } else if code.starts_with("relative_only_escape") {
+                    "relative_only_escape"
+                } else if code == "null_byte_detected" {
+                    "null_byte_detected"
+                } else if code == "path_traversal_detected" {
+                    "path_traversal_detected"
+                } else {
+                    "forbidden_path"
+                };
+                let msg = format!("path '{}' rejected: {}", value, clean_code);
+                self.path_witnesses.push(crate::path::PathWitness {
+                    raw_path: value.to_owned(),
+                    source_path: source_path.to_path_buf(),
+                    resolved_path: None,
+                    policy: format!("{policy:?}").split_whitespace().next().unwrap_or("Unknown").to_owned(),
+                    accepted: false,
+                });
+                self.at(field, |v| {
+                    v.error(ErrorKind::Predicate { code: clean_code }, msg);
+                });
+            }
         }
     }
 
