@@ -1,8 +1,7 @@
 //! AC3: TrybuildChangedPolicy
 //! Executes `cargo test --test changed` when trybuild files change.
 
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 /// Configuration for the TrybuildChangedPolicy.
 #[derive(Debug, Clone)]
@@ -15,10 +14,7 @@ pub struct TrybuildChangedConfig {
 
 impl Default for TrybuildChangedConfig {
     fn default() -> Self {
-        Self {
-            trybuild_dir: "tests/trybuild".to_string(),
-            last_hash: None,
-        }
+        Self { trybuild_dir: "tests/trybuild".to_string(), last_hash: None }
     }
 }
 
@@ -43,8 +39,8 @@ fn compute_dir_hash(path: &Path) -> Result<String, String> {
 
         if metadata.is_file() {
             let file_path = entry.path();
-            let file_content = fs::read(&file_path)
-                .map_err(|e| format!("Failed to read file: {}", e))?;
+            let file_content =
+                fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
             hasher.update(&file_content);
         }
     }
@@ -77,8 +73,12 @@ pub fn execute(config: &TrybuildChangedConfig, apply: bool) -> Result<(), String
 
     if apply {
         // Actually run cargo test
-        crate::autonomic::subprocess::run_with_timeout("cargo", &["test", "--test", "changed"], false)
-            .map(|_| ())
+        crate::autonomic::subprocess::run_with_timeout(
+            "cargo",
+            &["test", "--test", "changed"],
+            false,
+        )
+        .map(|_| ())
     } else {
         // Just report what would happen
         eprintln!("[TrybuildChangedPolicy] Would run: cargo test --test changed");

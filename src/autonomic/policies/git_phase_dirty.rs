@@ -12,9 +12,7 @@ pub struct GitPhaseDirtyConfig {
 
 impl Default for GitPhaseDirtyConfig {
     fn default() -> Self {
-        Self {
-            commit_message: "chore: auto-commit dirty tree".to_string(),
-        }
+        Self { commit_message: "chore: auto-commit dirty tree".to_string() }
     }
 }
 
@@ -22,10 +20,7 @@ impl Default for GitPhaseDirtyConfig {
 pub fn check_dirty() -> bool {
     // Run: git status --porcelain
     // If output is non-empty, there are uncommitted changes
-    let output = Command::new("git")
-        .arg("status")
-        .arg("--porcelain")
-        .output();
+    let output = Command::new("git").arg("status").arg("--porcelain").output();
 
     match output {
         Ok(out) => {

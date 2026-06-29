@@ -14,10 +14,7 @@ pub struct BranchBehindConfig {
 
 impl Default for BranchBehindConfig {
     fn default() -> Self {
-        Self {
-            remote: "origin".to_string(),
-            target_branch: "main".to_string(),
-        }
+        Self { remote: "origin".to_string(), target_branch: "main".to_string() }
     }
 }
 
@@ -26,10 +23,7 @@ pub fn check_behind(config: &BranchBehindConfig) -> bool {
     let remote_branch = format!("{}/{}", config.remote, config.target_branch);
 
     // Run: git fetch (to ensure we have latest remote info)
-    let fetch_output = Command::new("git")
-        .arg("fetch")
-        .arg(&config.remote)
-        .output();
+    let fetch_output = Command::new("git").arg("fetch").arg(&config.remote).output();
 
     if fetch_output.is_err() {
         return false; // Can't fetch, assume not behind

@@ -4,8 +4,8 @@
 //! AC9: Idempotency guarantees.
 
 use crate::autonomic::policies::{
-    BranchBehindConfig, GitPhaseDirtyConfig, PublishNotAdjudicatedConfig, TargetPressureConfig,
-    ToolchainMismatchConfig, TrybuildChangedConfig, EvidenceStaleConfig,
+    BranchBehindConfig, EvidenceStaleConfig, GitPhaseDirtyConfig, PublishNotAdjudicatedConfig,
+    TargetPressureConfig, ToolchainMismatchConfig, TrybuildChangedConfig,
 };
 
 /// The main policy executor.
@@ -83,27 +83,23 @@ impl PolicyEngine {
     /// AC8: Uses subprocess with 30s timeout.
     /// AC9: Each policy is idempotent (only executes if conditions are met).
     pub fn execute_all(&self) -> PolicyEngineResult {
+        use crate::autonomic::policies;
+
         let mut results = Vec::new();
         let mut total_executed = 0;
         let mut total_failed = 0;
 
-        // AC1: TargetPressurePolicy
-        let name = "TargetPressurePolicy";
-        eprintln!("[{}] Checking target pressure...", name);
-        match crate::autonomic::policies::target_pressure::execute(&self.target_pressure, self.apply)
-        {
+        // Check condition once, execute only if true, record result atomically (no TOCTOU).
+        let mut run = |name: &str, condition: bool, exec: Result<(), String>| match exec {
             Ok(_) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: crate::autonomic::policies::target_pressure::check_pressure(
-                        &self.target_pressure,
-                    ),
-                    error: None,
-                });
-                if crate::autonomic::policies::target_pressure::check_pressure(&self.target_pressure)
-                {
+                if condition {
                     total_executed += 1;
                 }
+                results.push(PolicyResult {
+                    policy_name: name.to_string(),
+                    executed: condition,
+                    error: None,
+                });
             }
             Err(e) => {
                 results.push(PolicyResult {
@@ -113,180 +109,90 @@ impl PolicyEngine {
                 });
                 total_failed += 1;
             }
-        }
+        };
 
-        // AC2: ToolchainMismatchPolicy
-        let name = "ToolchainMismatchPolicy";
-        eprintln!("[{}] Checking toolchain mismatch...", name);
-        match crate::autonomic::policies::toolchain_mismatch::execute(
-            &self.toolchain_mismatch,
-            self.apply,
-        ) {
-            Ok(_) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: crate::autonomic::policies::toolchain_mismatch::check_mismatch(
-                        &self.toolchain_mismatch,
-                    ),
-                    error: None,
-                });
-                if crate::autonomic::policies::toolchain_mismatch::check_mismatch(
-                    &self.toolchain_mismatch,
-                ) {
-                    total_executed += 1;
-                }
-            }
-            Err(e) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: true,
-                    error: Some(e),
-                });
-                total_failed += 1;
-            }
-        }
+        let p1 = policies::target_pressure::check_pressure(&self.target_pressure);
+        run(
+            "TargetPressurePolicy",
+            p1,
+            if p1 {
+                policies::target_pressure::execute(&self.target_pressure, self.apply)
+            } else {
+                Ok(())
+            },
+        );
 
-        // AC3: TrybuildChangedPolicy
-        let name = "TrybuildChangedPolicy";
-        eprintln!("[{}] Checking trybuild changes...", name);
-        match crate::autonomic::policies::trybuild_changed::execute(&self.trybuild_changed, self.apply)
-        {
-            Ok(_) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: crate::autonomic::policies::trybuild_changed::check_changed(
-                        &self.trybuild_changed,
-                    ),
-                    error: None,
-                });
-                if crate::autonomic::policies::trybuild_changed::check_changed(&self.trybuild_changed)
-                {
-                    total_executed += 1;
-                }
-            }
-            Err(e) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: true,
-                    error: Some(e),
-                });
-                total_failed += 1;
-            }
-        }
+        let p2 = policies::toolchain_mismatch::check_mismatch(&self.toolchain_mismatch);
+        run(
+            "ToolchainMismatchPolicy",
+            p2,
+            if p2 {
+                policies::toolchain_mismatch::execute(&self.toolchain_mismatch, self.apply)
+            } else {
+                Ok(())
+            },
+        );
 
-        // AC4: BranchBehindPolicy
-        let name = "BranchBehindPolicy";
-        eprintln!("[{}] Checking branch behind...", name);
-        match crate::autonomic::policies::branch_behind::execute(&self.branch_behind, self.apply) {
-            Ok(_) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: crate::autonomic::policies::branch_behind::check_behind(
-                        &self.branch_behind,
-                    ),
-                    error: None,
-                });
-                if crate::autonomic::policies::branch_behind::check_behind(&self.branch_behind) {
-                    total_executed += 1;
-                }
-            }
-            Err(e) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: true,
-                    error: Some(e),
-                });
-                total_failed += 1;
-            }
-        }
+        let p3 = policies::trybuild_changed::check_changed(&self.trybuild_changed);
+        run(
+            "TrybuildChangedPolicy",
+            p3,
+            if p3 {
+                policies::trybuild_changed::execute(&self.trybuild_changed, self.apply)
+            } else {
+                Ok(())
+            },
+        );
 
-        // AC5: PublishNotAdjudicatedPolicy
-        let name = "PublishNotAdjudicatedPolicy";
-        eprintln!("[{}] Checking publish adjudication...", name);
-        match crate::autonomic::policies::publish_not_adjudicated::execute(
-            &self.publish_not_adjudicated,
-            self.apply,
-        ) {
-            Ok(_) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: crate::autonomic::policies::publish_not_adjudicated::check_needs_dry_run(
-                        &self.publish_not_adjudicated,
-                    ),
-                    error: None,
-                });
-                if crate::autonomic::policies::publish_not_adjudicated::check_needs_dry_run(
+        let p4 = policies::branch_behind::check_behind(&self.branch_behind);
+        run(
+            "BranchBehindPolicy",
+            p4,
+            if p4 {
+                policies::branch_behind::execute(&self.branch_behind, self.apply)
+            } else {
+                Ok(())
+            },
+        );
+
+        let p5 =
+            policies::publish_not_adjudicated::check_needs_dry_run(&self.publish_not_adjudicated);
+        run(
+            "PublishNotAdjudicatedPolicy",
+            p5,
+            if p5 {
+                policies::publish_not_adjudicated::execute(
                     &self.publish_not_adjudicated,
-                ) {
-                    total_executed += 1;
-                }
-            }
-            Err(e) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: true,
-                    error: Some(e),
-                });
-                total_failed += 1;
-            }
-        }
+                    self.apply,
+                )
+            } else {
+                Ok(())
+            },
+        );
 
-        // AC6: GitPhaseDirtyPolicy
-        let name = "GitPhaseDirtyPolicy";
-        eprintln!("[{}] Checking git dirty state...", name);
-        match crate::autonomic::policies::git_phase_dirty::execute(&self.git_phase_dirty, self.apply)
-        {
-            Ok(_) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: crate::autonomic::policies::git_phase_dirty::check_dirty(),
-                    error: None,
-                });
-                if crate::autonomic::policies::git_phase_dirty::check_dirty() {
-                    total_executed += 1;
-                }
-            }
-            Err(e) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: true,
-                    error: Some(e),
-                });
-                total_failed += 1;
-            }
-        }
+        let p6 = policies::git_phase_dirty::check_dirty();
+        run(
+            "GitPhaseDirtyPolicy",
+            p6,
+            if p6 {
+                policies::git_phase_dirty::execute(&self.git_phase_dirty, self.apply)
+            } else {
+                Ok(())
+            },
+        );
 
-        // evidence_stale policy
-        let name = "EvidenceStalyPolicy";
-        eprintln!("[{}] Checking evidence staleness...", name);
-        match crate::autonomic::policies::evidence_stale::execute(&self.evidence_stale, self.apply) {
-            Ok(_) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: crate::autonomic::policies::evidence_stale::check_stale(
-                        &self.evidence_stale,
-                    ),
-                    error: None,
-                });
-                if crate::autonomic::policies::evidence_stale::check_stale(&self.evidence_stale) {
-                    total_executed += 1;
-                }
-            }
-            Err(e) => {
-                results.push(PolicyResult {
-                    policy_name: name.to_string(),
-                    executed: true,
-                    error: Some(e),
-                });
-                total_failed += 1;
-            }
-        }
+        let p7 = policies::evidence_stale::check_stale(&self.evidence_stale);
+        run(
+            "EvidenceStalePolicy",
+            p7,
+            if p7 {
+                policies::evidence_stale::execute(&self.evidence_stale, self.apply)
+            } else {
+                Ok(())
+            },
+        );
 
-        PolicyEngineResult {
-            results,
-            total_executed,
-            total_failed,
-        }
+        PolicyEngineResult { results, total_executed, total_failed }
     }
 }
 

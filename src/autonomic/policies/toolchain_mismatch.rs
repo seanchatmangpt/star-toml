@@ -1,8 +1,7 @@
 //! AC2: ToolchainMismatchPolicy
 //! Executes `rustup update` when Rust toolchain version mismatches.
 
-use std::fs;
-use std::process::Command;
+use std::{fs, process::Command};
 
 /// Configuration for the ToolchainMismatchPolicy.
 #[derive(Debug, Clone)]
@@ -13,16 +12,14 @@ pub struct ToolchainMismatchConfig {
 
 impl Default for ToolchainMismatchConfig {
     fn default() -> Self {
-        Self {
-            toolchain_file: "rust-toolchain.toml".to_string(),
-        }
+        Self { toolchain_file: "rust-toolchain.toml".to_string() }
     }
 }
 
 /// Reads the toolchain version from rust-toolchain.toml.
 fn read_toolchain_version(path: &str) -> Result<String, String> {
-    let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read toolchain file: {}", e))?;
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read toolchain file: {}", e))?;
 
     // Simple parsing: look for "channel = " line
     for line in content.lines() {
@@ -54,10 +51,7 @@ pub fn get_current_version() -> Result<String, String> {
 
 /// Checks if the toolchain versions match.
 pub fn check_mismatch(config: &ToolchainMismatchConfig) -> bool {
-    match (
-        read_toolchain_version(&config.toolchain_file),
-        get_current_version(),
-    ) {
+    match (read_toolchain_version(&config.toolchain_file), get_current_version()) {
         (Ok(expected), Ok(current)) => {
             // Simple check: if expected string is not in current output, it's a mismatch
             !current.contains(&expected)
@@ -74,8 +68,7 @@ pub fn execute(config: &ToolchainMismatchConfig, apply: bool) -> Result<(), Stri
 
     if apply {
         // Actually run rustup update
-        crate::autonomic::subprocess::run_with_timeout("rustup", &["update"], false)
-            .map(|_| ())
+        crate::autonomic::subprocess::run_with_timeout("rustup", &["update"], false).map(|_| ())
     } else {
         // Just report what would happen
         eprintln!("[ToolchainMismatchPolicy] Would run: rustup update");
@@ -110,9 +103,8 @@ mod tests {
 
     #[test]
     fn test_check_mismatch_missing_file() {
-        let config = ToolchainMismatchConfig {
-            toolchain_file: "/nonexistent/toolchain.toml".to_string(),
-        };
+        let config =
+            ToolchainMismatchConfig { toolchain_file: "/nonexistent/toolchain.toml".to_string() };
         assert!(!check_mismatch(&config));
     }
 

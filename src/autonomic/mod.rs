@@ -18,8 +18,8 @@
 //! - **subprocess.rs** — Central subprocess runner with 30-second timeout.
 //! - **policies/*** — Individual policy modules (6 AC policies + evidence_stale).
 
-pub mod policy_engine;
 pub mod policies;
+pub mod policy_engine;
 pub mod subprocess;
 
 pub use policy_engine::{PolicyEngine, PolicyEngineResult, PolicyResult};

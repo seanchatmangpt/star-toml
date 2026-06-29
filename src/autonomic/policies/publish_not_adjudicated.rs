@@ -12,9 +12,7 @@ pub struct PublishNotAdjudicatedConfig {
 
 impl Default for PublishNotAdjudicatedConfig {
     fn default() -> Self {
-        Self {
-            check_published: true,
-        }
+        Self { check_published: true }
     }
 }
 
@@ -22,12 +20,8 @@ impl Default for PublishNotAdjudicatedConfig {
 fn check_unpublished() -> bool {
     // Run: cargo search <package-name> --limit 1
     // If it doesn't exist in registry, it's unpublished
-    let output = Command::new("cargo")
-        .arg("search")
-        .arg("star-toml")
-        .arg("--limit")
-        .arg("1")
-        .output();
+    let output =
+        Command::new("cargo").arg("search").arg("star-toml").arg("--limit").arg("1").output();
 
     match output {
         Ok(out) => !String::from_utf8_lossy(&out.stdout).contains("star-toml"),
@@ -54,19 +48,16 @@ pub fn execute(config: &PublishNotAdjudicatedConfig, apply: bool) -> Result<(), 
     if apply {
         // First, run cargo publish --dry-run
         eprintln!("[PublishNotAdjudicatedPolicy] Running dry-run first...");
-        crate::autonomic::subprocess::run_with_timeout(
-            "cargo",
-            &["publish", "--dry-run"],
-            false,
-        )?;
+        crate::autonomic::subprocess::run_with_timeout("cargo", &["publish", "--dry-run"], false)?;
 
         // If dry-run succeeds, run actual publish
         eprintln!("[PublishNotAdjudicatedPolicy] Dry-run passed, proceeding with publish...");
-        crate::autonomic::subprocess::run_with_timeout("cargo", &["publish"], false)
-            .map(|_| ())
+        crate::autonomic::subprocess::run_with_timeout("cargo", &["publish"], false).map(|_| ())
     } else {
         // Just report what would happen
-        eprintln!("[PublishNotAdjudicatedPolicy] Would run: cargo publish --dry-run && cargo publish");
+        eprintln!(
+            "[PublishNotAdjudicatedPolicy] Would run: cargo publish --dry-run && cargo publish"
+        );
         Ok(())
     }
 }
@@ -89,9 +80,7 @@ mod tests {
 
     #[test]
     fn test_check_needs_dry_run_disabled() {
-        let config = PublishNotAdjudicatedConfig {
-            check_published: false,
-        };
+        let config = PublishNotAdjudicatedConfig { check_published: false };
         assert!(!check_needs_dry_run(&config));
     }
 

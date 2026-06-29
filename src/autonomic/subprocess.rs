@@ -2,9 +2,11 @@
 //!
 //! AC8: Subprocess isolation & error handling (30s timeout)
 
-use std::process::{Command, Output, ExitStatus};
-use std::time::Duration;
-use std::os::unix::process::ExitStatusExt;
+use std::{
+    os::unix::process::ExitStatusExt,
+    process::{Command, ExitStatus, Output},
+    time::Duration,
+};
 
 /// Runs a subprocess with a 30-second timeout.
 ///

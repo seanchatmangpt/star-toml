@@ -5,19 +5,19 @@
 //! AC8: Subprocess isolation with 30s timeout.
 //! AC9: Idempotency guarantees.
 
+pub mod branch_behind;
+pub mod git_phase_dirty;
+pub mod publish_not_adjudicated;
 pub mod target_pressure;
 pub mod toolchain_mismatch;
 pub mod trybuild_changed;
-pub mod branch_behind;
-pub mod publish_not_adjudicated;
-pub mod git_phase_dirty;
 
-pub use target_pressure::TargetPressureConfig;
-pub use toolchain_mismatch::{ToolchainMismatchConfig, get_current_version};
-pub use trybuild_changed::TrybuildChangedConfig;
 pub use branch_behind::BranchBehindConfig;
-pub use publish_not_adjudicated::PublishNotAdjudicatedConfig;
 pub use git_phase_dirty::GitPhaseDirtyConfig;
+pub use publish_not_adjudicated::PublishNotAdjudicatedConfig;
+pub use target_pressure::TargetPressureConfig;
+pub use toolchain_mismatch::{get_current_version, ToolchainMismatchConfig};
+pub use trybuild_changed::TrybuildChangedConfig;
 
 /// The evidence_stale policy (stub) — detects stale evidence and cleans it.
 pub mod evidence_stale {
@@ -29,10 +29,7 @@ pub mod evidence_stale {
 
     impl Default for EvidenceStaleConfig {
         fn default() -> Self {
-            Self {
-                evidence_dir: ".evidence".to_string(),
-                max_age_days: 30,
-            }
+            Self { evidence_dir: ".evidence".to_string(), max_age_days: 30 }
         }
     }
 

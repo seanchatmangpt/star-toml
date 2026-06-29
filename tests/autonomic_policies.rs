@@ -4,11 +4,12 @@
 //! AC8: Subprocess isolation & error handling (30s timeout).
 //! AC9: Idempotency guarantees.
 
-use star_toml::autonomic::PolicyEngine;
-use star_toml::autonomic::policies::{
-    BranchBehindConfig, EvidenceStaleConfig, GitPhaseDirtyConfig,
-    PublishNotAdjudicatedConfig, TargetPressureConfig, ToolchainMismatchConfig,
-    TrybuildChangedConfig,
+use star_toml::autonomic::{
+    policies::{
+        BranchBehindConfig, EvidenceStaleConfig, GitPhaseDirtyConfig, PublishNotAdjudicatedConfig,
+        TargetPressureConfig, ToolchainMismatchConfig, TrybuildChangedConfig,
+    },
+    PolicyEngine,
 };
 
 // ============================================================================
@@ -35,8 +36,7 @@ fn test_ac1_target_pressure_nonexistent_path() {
 #[test]
 fn test_ac1_target_pressure_execute_dry_run() {
     let config = TargetPressureConfig::default();
-    let result =
-        star_toml::autonomic::policies::target_pressure::execute(&config, false);
+    let result = star_toml::autonomic::policies::target_pressure::execute(&config, false);
     assert!(result.is_ok(), "Dry-run should not fail");
 }
 
@@ -45,11 +45,9 @@ fn test_ac1_target_pressure_execute_idempotent() {
     let config = TargetPressureConfig::default();
 
     // First execution
-    let result1 =
-        star_toml::autonomic::policies::target_pressure::execute(&config, false);
+    let result1 = star_toml::autonomic::policies::target_pressure::execute(&config, false);
     // Second execution (same state)
-    let result2 =
-        star_toml::autonomic::policies::target_pressure::execute(&config, false);
+    let result2 = star_toml::autonomic::policies::target_pressure::execute(&config, false);
 
     assert!(result1.is_ok());
     assert!(result2.is_ok());
@@ -67,19 +65,16 @@ fn test_ac2_toolchain_mismatch_config_default() {
 
 #[test]
 fn test_ac2_toolchain_mismatch_missing_file() {
-    let config = ToolchainMismatchConfig {
-        toolchain_file: "/tmp/nonexistent_xyz.toml".to_string(),
-    };
-    let result =
-        star_toml::autonomic::policies::toolchain_mismatch::check_mismatch(&config);
+    let config =
+        ToolchainMismatchConfig { toolchain_file: "/tmp/nonexistent_xyz.toml".to_string() };
+    let result = star_toml::autonomic::policies::toolchain_mismatch::check_mismatch(&config);
     assert!(!result, "Should not detect mismatch for missing files");
 }
 
 #[test]
 fn test_ac2_toolchain_mismatch_execute_dry_run() {
     let config = ToolchainMismatchConfig::default();
-    let result =
-        star_toml::autonomic::policies::toolchain_mismatch::execute(&config, false);
+    let result = star_toml::autonomic::policies::toolchain_mismatch::execute(&config, false);
     assert!(result.is_ok(), "Dry-run should not fail");
 }
 
@@ -97,10 +92,8 @@ fn test_ac2_toolchain_mismatch_get_current_version() {
 fn test_ac2_toolchain_mismatch_idempotent() {
     let config = ToolchainMismatchConfig::default();
 
-    let result1 =
-        star_toml::autonomic::policies::toolchain_mismatch::execute(&config, false);
-    let result2 =
-        star_toml::autonomic::policies::toolchain_mismatch::execute(&config, false);
+    let result1 = star_toml::autonomic::policies::toolchain_mismatch::execute(&config, false);
+    let result2 = star_toml::autonomic::policies::toolchain_mismatch::execute(&config, false);
 
     assert!(result1.is_ok());
     assert!(result2.is_ok());
@@ -123,16 +116,14 @@ fn test_ac3_trybuild_changed_missing_dir() {
         trybuild_dir: "/tmp/nonexistent_trybuild_xyz".to_string(),
         last_hash: None,
     };
-    let result =
-        star_toml::autonomic::policies::trybuild_changed::check_changed(&config);
+    let result = star_toml::autonomic::policies::trybuild_changed::check_changed(&config);
     assert!(!result, "Should not detect change for missing directories");
 }
 
 #[test]
 fn test_ac3_trybuild_changed_execute_dry_run() {
     let config = TrybuildChangedConfig::default();
-    let result =
-        star_toml::autonomic::policies::trybuild_changed::execute(&config, false);
+    let result = star_toml::autonomic::policies::trybuild_changed::execute(&config, false);
     assert!(result.is_ok(), "Dry-run should not fail");
 }
 
@@ -142,8 +133,7 @@ fn test_ac3_trybuild_changed_with_previous_hash() {
         trybuild_dir: "/tmp/nonexistent_trybuild_xyz".to_string(),
         last_hash: Some("abc123def456".to_string()),
     };
-    let result =
-        star_toml::autonomic::policies::trybuild_changed::check_changed(&config);
+    let result = star_toml::autonomic::policies::trybuild_changed::check_changed(&config);
     assert!(!result, "With previous hash but nonexistent dir should not detect change");
 }
 
@@ -151,10 +141,8 @@ fn test_ac3_trybuild_changed_with_previous_hash() {
 fn test_ac3_trybuild_changed_idempotent() {
     let config = TrybuildChangedConfig::default();
 
-    let result1 =
-        star_toml::autonomic::policies::trybuild_changed::execute(&config, false);
-    let result2 =
-        star_toml::autonomic::policies::trybuild_changed::execute(&config, false);
+    let result1 = star_toml::autonomic::policies::trybuild_changed::execute(&config, false);
+    let result2 = star_toml::autonomic::policies::trybuild_changed::execute(&config, false);
 
     assert!(result1.is_ok());
     assert!(result2.is_ok());
@@ -180,10 +168,8 @@ fn test_ac4_branch_behind_execute_dry_run() {
 
 #[test]
 fn test_ac4_branch_behind_custom_branch() {
-    let config = BranchBehindConfig {
-        remote: "origin".to_string(),
-        target_branch: "develop".to_string(),
-    };
+    let config =
+        BranchBehindConfig { remote: "origin".to_string(), target_branch: "develop".to_string() };
     let result = star_toml::autonomic::policies::branch_behind::execute(&config, false);
     assert!(result.is_ok());
 }
@@ -211,9 +197,7 @@ fn test_ac5_publish_not_adjudicated_config_default() {
 
 #[test]
 fn test_ac5_publish_not_adjudicated_check_disabled() {
-    let config = PublishNotAdjudicatedConfig {
-        check_published: false,
-    };
+    let config = PublishNotAdjudicatedConfig { check_published: false };
     let result =
         star_toml::autonomic::policies::publish_not_adjudicated::check_needs_dry_run(&config);
     assert!(!result, "Should not need dry-run when check is disabled");
@@ -222,8 +206,7 @@ fn test_ac5_publish_not_adjudicated_check_disabled() {
 #[test]
 fn test_ac5_publish_not_adjudicated_execute_dry_run() {
     let config = PublishNotAdjudicatedConfig::default();
-    let result =
-        star_toml::autonomic::policies::publish_not_adjudicated::execute(&config, false);
+    let result = star_toml::autonomic::policies::publish_not_adjudicated::execute(&config, false);
     assert!(result.is_ok(), "Dry-run should not fail");
 }
 
@@ -231,10 +214,8 @@ fn test_ac5_publish_not_adjudicated_execute_dry_run() {
 fn test_ac5_publish_not_adjudicated_idempotent() {
     let config = PublishNotAdjudicatedConfig::default();
 
-    let result1 =
-        star_toml::autonomic::policies::publish_not_adjudicated::execute(&config, false);
-    let result2 =
-        star_toml::autonomic::policies::publish_not_adjudicated::execute(&config, false);
+    let result1 = star_toml::autonomic::policies::publish_not_adjudicated::execute(&config, false);
+    let result2 = star_toml::autonomic::policies::publish_not_adjudicated::execute(&config, false);
 
     assert!(result1.is_ok());
     assert!(result2.is_ok());
@@ -252,9 +233,7 @@ fn test_ac6_git_phase_dirty_config_default() {
 
 #[test]
 fn test_ac6_git_phase_dirty_custom_message() {
-    let config = GitPhaseDirtyConfig {
-        commit_message: "chore: custom message".to_string(),
-    };
+    let config = GitPhaseDirtyConfig { commit_message: "chore: custom message".to_string() };
     assert_eq!(config.commit_message, "chore: custom message");
 }
 
@@ -300,9 +279,7 @@ fn test_ac7_all_policies_respect_apply_true() {
 
 #[test]
 fn test_ac7_builder_chain() {
-    let engine = PolicyEngine::new()
-        .with_apply(false)
-        .with_apply(true);
+    let engine = PolicyEngine::new().with_apply(false).with_apply(true);
 
     assert!(engine.apply);
 }
@@ -345,11 +322,8 @@ fn test_ac8_subprocess_nonexistent_command() {
 #[test]
 fn test_ac8_subprocess_with_args() {
     // Use a command that exists and accepts arguments
-    let result = star_toml::autonomic::subprocess::run_with_timeout(
-        "sh",
-        &["-c", "echo test"],
-        false,
-    );
+    let result =
+        star_toml::autonomic::subprocess::run_with_timeout("sh", &["-c", "echo test"], false);
     // This might fail on some systems, so we just check it doesn't panic
     let _ = result;
 }
@@ -416,11 +390,7 @@ fn test_integration_all_policies_execute() {
     assert_eq!(result.results.len(), 7);
 
     // Check that all policy names are present
-    let policy_names: Vec<&str> = result
-        .results
-        .iter()
-        .map(|r| r.policy_name.as_str())
-        .collect();
+    let policy_names: Vec<&str> = result.results.iter().map(|r| r.policy_name.as_str()).collect();
 
     assert!(policy_names.contains(&"TargetPressurePolicy"));
     assert!(policy_names.contains(&"ToolchainMismatchPolicy"));
@@ -428,7 +398,7 @@ fn test_integration_all_policies_execute() {
     assert!(policy_names.contains(&"BranchBehindPolicy"));
     assert!(policy_names.contains(&"PublishNotAdjudicatedPolicy"));
     assert!(policy_names.contains(&"GitPhaseDirtyPolicy"));
-    assert!(policy_names.contains(&"EvidenceStalyPolicy"));
+    assert!(policy_names.contains(&"EvidenceStalePolicy"));
 }
 
 #[test]
@@ -468,29 +438,21 @@ fn test_integration_policy_engine_50_plus_executions() {
 
     // Test AC1 with different configs
     for limit in [100_000_000, 500_000_000, 1_000_000_000] {
-        let config = TargetPressureConfig {
-            limit_bytes: limit,
-            project_root: ".".to_string(),
-        };
+        let config = TargetPressureConfig { limit_bytes: limit, project_root: ".".to_string() };
         let _ = star_toml::autonomic::policies::target_pressure::execute(&config, false);
         count += 1;
     }
 
     // Test AC2 with different toolchain files
     for file in ["rust-toolchain.toml", "toolchain.toml"] {
-        let config = ToolchainMismatchConfig {
-            toolchain_file: file.to_string(),
-        };
+        let config = ToolchainMismatchConfig { toolchain_file: file.to_string() };
         let _ = star_toml::autonomic::policies::toolchain_mismatch::execute(&config, false);
         count += 1;
     }
 
     // Test AC3 with different trybuild dirs
     for dir in ["tests/trybuild", "tests/ui", "tests/compile_fail"] {
-        let config = TrybuildChangedConfig {
-            trybuild_dir: dir.to_string(),
-            last_hash: None,
-        };
+        let config = TrybuildChangedConfig { trybuild_dir: dir.to_string(), last_hash: None };
         let _ = star_toml::autonomic::policies::trybuild_changed::execute(&config, false);
         count += 1;
     }
@@ -515,24 +477,16 @@ fn test_integration_policy_engine_50_plus_executions() {
     }
 
     // Test AC6 with different commit messages
-    for msg in [
-        "chore: auto-commit",
-        "feat: auto-update",
-        "fix: auto-fix",
-    ] {
-        let config = GitPhaseDirtyConfig {
-            commit_message: msg.to_string(),
-        };
+    for msg in ["chore: auto-commit", "feat: auto-update", "fix: auto-fix"] {
+        let config = GitPhaseDirtyConfig { commit_message: msg.to_string() };
         let _ = star_toml::autonomic::policies::git_phase_dirty::execute(&config, false);
         count += 1;
     }
 
     // Test evidence_stale with different configs
     for days in [7, 14, 30, 60] {
-        let config = EvidenceStaleConfig {
-            evidence_dir: ".evidence".to_string(),
-            max_age_days: days,
-        };
+        let config =
+            EvidenceStaleConfig { evidence_dir: ".evidence".to_string(), max_age_days: days };
         let _ = star_toml::autonomic::policies::evidence_stale::execute(&config, false);
         count += 1;
     }
@@ -546,10 +500,8 @@ fn test_integration_policy_engine_50_plus_executions() {
 
     // Additional tests for evidence_stale with various configurations
     for max_age in [1, 7, 14, 30, 60, 90] {
-        let config = EvidenceStaleConfig {
-            evidence_dir: ".evidence".to_string(),
-            max_age_days: max_age,
-        };
+        let config =
+            EvidenceStaleConfig { evidence_dir: ".evidence".to_string(), max_age_days: max_age };
         let _ = star_toml::autonomic::policies::evidence_stale::execute(&config, false);
         count += 1;
     }

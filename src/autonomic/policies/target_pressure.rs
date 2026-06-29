@@ -1,8 +1,7 @@
 //! AC1: TargetPressurePolicy
 //! Executes `cargo clean` when target/ directory exceeds a size limit.
 
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 /// Configuration for the TargetPressurePolicy.
 #[derive(Debug, Clone)]
@@ -58,8 +57,7 @@ pub fn execute(config: &TargetPressureConfig, apply: bool) -> Result<(), String>
 
     if apply {
         // Actually run cargo clean
-        crate::autonomic::subprocess::run_with_timeout("cargo", &["clean"], false)
-            .map(|_| ())
+        crate::autonomic::subprocess::run_with_timeout("cargo", &["clean"], false).map(|_| ())
     } else {
         // Just report what would happen
         eprintln!("[TargetPressurePolicy] Would run: cargo clean");
