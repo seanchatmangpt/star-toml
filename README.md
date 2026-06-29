@@ -50,20 +50,37 @@ Most software systems do not fail because they lack code. They fail because thei
 
 ## 🚀 The Config Admission Pipeline
 
-`star-toml` enforces a strict, typestate-guaranteed admission pipeline:
+`star-toml` provides two typestate-guaranteed pipelines depending on whether you need full provenance tracking:
 
+**Simple path** (`Loader`) — compose layers, deserialize, validate, freeze:
 ```text
 Raw (String/File)
- ↳ BoundedSources (Source list checked)
-    ↳ Merged (Traced layer merge)
-       ↳ EnvResolved (Prefixed environment variables)
-          ↳ Deserialized<T> (Schema alignment)
-             ↳ Validated<T> (Pydantic-grade custom rules)
-                ↳ Frozen<T> (Immutable representation)
-                   ↳ CanonicalSaved (Alphabetically sorted, deterministic serialization)
-                      ↳ Witnessed (BLAKE3 hash binding all provenance inputs)
-                         ↳ AdmittedConfig<T> (Terminal admitted config)
+ ↳ Merged          — traced layer merge (deep_merge_traced + WinnerMap)
+    ↳ Deserialized<T>  — schema alignment, serde
+       ↳ Validated<T>  — Pydantic-grade custom rules (Validate trait)
+          ↳ Frozen<T>  — immutable; save_canonical() writes sorted TOML to disk
 ```
+
+**Provenance-tracked admission path** (`TrustedLoader`) — full standing decision with witness:
+```text
+Raw (String/File)
+ ↳ BoundedSources  — source list checked, provenance reports built
+    ↳ EnvResolved  — prefixed environment variable overrides applied
+       ↳ Deserialized<T>
+          ↳ Validated<T>
+             ↳ Frozen<T>
+                ↳ AdmittedConfig<T>  — terminal admitted config
+                   • ConfigWitness (BLAKE3) computed internally and bound to all provenance inputs
+                   • save_canonical() available before this step on Validated/Frozen
+```
+
+> **Note:** `CanonicalSaved` and `Witnessed` are **not** typestates — `save_canonical()` is a
+> method on `Config<Validated<T>>` / `Config<Frozen<T>>`, and the `ConfigWitness` is computed
+> inside `load_admitted()`. `Merged` only exists on the simple `Loader` path; `TrustedLoader`
+> uses `BoundedSources → EnvResolved` instead.
+>
+> `load_admitted_strict()` is **deprecated** since v26.6.28. Use `load_admitted()` (strict by
+> default) or `load_admitted_exploratory()` to allow unknown fields during schema development.
 
 ---
 
@@ -91,24 +108,36 @@ impl Validate for AppConfig {
 impl ConfigLifecycle for AppConfig {}
 
 fn main() {
-    // 1. Establish the admission loader with layers and env policies
-    let loader = TrustedLoader::new()
-        .layer_file("config.toml")
-        .env_prefix("APP_");
-
-    // 2. Load the terminal admitted config wrapper
-    match loader.load_admitted::<AppConfig>() {
+    // TrustedLoader: provenance-tracked admission path with BLAKE3 witness
+    match TrustedLoader::new()
+        .layer_file_if_exists("config.toml")  // optional base file
+        .env_prefix("APP_")                    // APP_NAME, APP_PORT override
+        .load_admitted::<AppConfig>()          // strict: rejects unknown fields
+    {
         Ok(admitted) => {
-            println!("Admission Granted ($q_config = 1$)!");
+            println!("Admission Granted (q_config = 1)");
             println!("Config: {:?}", admitted.value());
-            println!("Witness: {}", admitted.witness().hash());
+            println!("Witness: {}", admitted.witness().hash()); // 64-char BLAKE3 hex
         }
         Err(e) => {
-            println!("Admission Refused ($q_config = 0$): {:?}", e);
+            println!("Admission Refused (q_config = 0): {e}");
         }
     }
 }
 ```
+
+**Key API surface:**
+
+| Builder | Method | Returns |
+|---------|--------|---------|
+| `TrustedLoader` | `.load_admitted::<T>()` | `Result<AdmittedConfig<T>>` — strict, witness-backed |
+| `TrustedLoader` | `.load_admitted_exploratory::<T>()` | `Result<AdmittedConfig<T>>` — allows unknown fields |
+| `TrustedLoader` | `.load_frozen::<T>()` | `Result<FrozenLoadResult<T>>` — full provenance reports |
+| `Loader` | `.load_validated::<T>()` | `Result<Config<Validated<T>>>` — simple path |
+| Free fn | `save_canonical(path, &T)` | `Result<()>` — alphabetically sorted TOML |
+| Free fn | `save_pretty(path, &T)` | `Result<()>` — human-readable TOML |
+| Free fn | `deep_merge_traced(base, overlay, id, prefix, winner_map)` | provenance-tracked merge |
+| Type | `WinnerMap` | `BTreeMap<String, String>` — field path → winning layer id |
 
 ---
 
@@ -133,7 +162,7 @@ Run the verifier report:
 cargo run --bin verifier_report
 ```
 
-Run DfCM examples:
+Run DfCM examples (demonstrative):
 ```bash
 cargo run --example basic_admitted_config
 cargo run --example layered_profiles
@@ -142,4 +171,11 @@ cargo run --example strict_unknown_fields
 cargo run --example path_policy_sandbox
 cargo run --example witness_and_q_config
 cargo run --example ocel_lifecycle_export
+```
+
+Run DfCM combinatorial integration tests (assertive — panic on violation):
+```bash
+cargo run --example dfcm_validation_matrix   # all 12 Validator checks × pass/fail + analytics
+cargo run --example dfcm_error_variants      # all 5 Error variants produced and matched
+cargo run --example dfcm_merge_semantics     # 7 layer-merge invariants asserted
 ```
