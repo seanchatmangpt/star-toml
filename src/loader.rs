@@ -768,6 +768,7 @@ impl<T> std::ops::Deref for TrustedConfig<T> {
 /// Builder for composing multiple TOML config sources and producing a `TrustedConfig`.
 pub struct TrustedLoader {
     loader: Loader,
+    oracle_gate: Option<crate::nouns::EvidenceGate>,
 }
 
 impl Default for TrustedLoader {
@@ -780,7 +781,17 @@ impl TrustedLoader {
     /// Create a new empty `TrustedLoader` with no sources.
     #[must_use]
     pub fn new() -> Self {
-        Self { loader: Loader::new() }
+        Self { loader: Loader::new(), oracle_gate: None }
+    }
+
+    /// AC3: Attach an oracle gate whose verdicts are checked before admission.
+    ///
+    /// If the gate contains any `Fail` verdict, `load_admitted` returns an error
+    /// and no `AdmittedConfig` is produced.
+    #[must_use]
+    pub fn with_oracle_gate(mut self, gate: crate::nouns::EvidenceGate) -> Self {
+        self.oracle_gate = Some(gate);
+        self
     }
 
     /// Add a literal TOML string as the next layer.
@@ -1671,6 +1682,31 @@ impl TrustedLoader {
         }
 
         let validated = deser.validate()?;
+
+        // AC3: Check oracle gate before admission. A Fail verdict blocks AdmittedConfig production.
+        if let Some(gate) = &self.oracle_gate {
+            if gate.is_blocked() {
+                let blocking = gate
+                    .highest_verdict()
+                    .map(|v| v.reason.as_str())
+                    .unwrap_or("oracle gate blocked admission");
+                let errs = crate::validation::ValidationErrors {
+                    errors: vec![crate::validation::ValidationError {
+                        loc: crate::validation::Loc(vec![]),
+                        kind: crate::validation::ErrorKind::Predicate {
+                            code: "oracle_gate_fail",
+                        },
+                        severity: crate::validation::Severity::Fatal,
+                        input: None,
+                        msg: format!("oracle gate FAIL: {}", blocking),
+                    }],
+                    title: None,
+                    checks_run: 1,
+                };
+                return Err(Error::Invalid(errs));
+            }
+        }
+
         let config = validated.freeze();
 
         let frozen_result = FrozenLoadResult {
