@@ -1666,10 +1666,14 @@ impl TrustedLoader {
 
         // AC3: Check oracle gate before admission. A Fail verdict blocks AdmittedConfig production.
         if let Some(gate) = &self.oracle_gate {
-            if gate.is_blocked() {
+            let report = gate.to_report(None);
+            if report.is_blocked {
                 let blocking = gate
-                    .highest_verdict()
+                    .verdicts()
+                    .iter()
+                    .filter(|v| v.verdict == crate::nouns::OracleVerdict::Fail)
                     .map(|v| v.reason.as_str())
+                    .next()
                     .unwrap_or("oracle gate blocked admission");
                 let errs = crate::validation::ValidationErrors {
                     errors: vec![crate::validation::ValidationError {

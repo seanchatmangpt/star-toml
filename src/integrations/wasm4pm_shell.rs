@@ -1,218 +1,253 @@
-//! AC1 & AC2: wpm binary discovery and shell-out integration.
+//! Shell integration for the `wpm` (wasm4pm) binary.
 //!
-//! This module handles:
-//! - AC1: wpm binary discovery (env var, PATH lookup, relative paths)
-//! - AC2: Shell-out integration (wpm audit, lean, spc_status, receipt_doctor)
-//!
-//! The Wasm4pmShell struct manages discovery of the `wpm` binary and
-//! provides methods to invoke wpm commands with proper error handling.
+//! Provides discovery, command execution, and verdict inference for the
+//! external `wpm` oracle binary.
 
 use std::{
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::Command,
 };
 
-/// Result type for wasm4pm shell operations.
-pub type Wasm4pmResult<T> = Result<T, Wasm4pmError>;
-
-/// Errors that can occur during wpm binary discovery or invocation.
-#[derive(Debug, Clone)]
+/// Errors that can occur when using the wpm oracle shell.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Wasm4pmError {
-    /// wpm binary not found in any location.
-    NotFound(String),
-    /// Command execution failed.
+    /// The `wpm` binary could not be found.
+    NotFound,
+    /// The command exited with a non-zero status.
     CommandFailed(String),
-    /// Invalid output format.
+    /// The output could not be interpreted.
     InvalidOutput(String),
-    /// Environment variable error.
+    /// An environment variable was set but pointed to a bad path.
     EnvError(String),
 }
 
 impl std::fmt::Display for Wasm4pmError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Wasm4pmError::NotFound(msg) => write!(f, "wpm binary not found: {}", msg),
-            Wasm4pmError::CommandFailed(msg) => write!(f, "wpm command failed: {}", msg),
-            Wasm4pmError::InvalidOutput(msg) => write!(f, "invalid wpm output: {}", msg),
-            Wasm4pmError::EnvError(msg) => write!(f, "environment error: {}", msg),
+            Self::NotFound => write!(f, "wpm binary not found"),
+            Self::CommandFailed(msg) => write!(f, "wpm command failed: {msg}"),
+            Self::InvalidOutput(msg) => write!(f, "invalid wpm output: {msg}"),
+            Self::EnvError(msg) => write!(f, "wpm env error: {msg}"),
         }
     }
 }
 
 impl std::error::Error for Wasm4pmError {}
 
-/// wpm command type for shell invocation.
+/// Result type for wasm4pm shell operations.
+pub type Wasm4pmResult<T> = Result<T, Wasm4pmError>;
+
+/// Commands supported by the `wpm` oracle binary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Wpm4Command {
-    /// `wpm audit` — runs validation audit.
     Audit,
-    /// `wpm lean` — lean mode check.
     Lean,
-    /// `wpm spc_status` — spec status check.
     SpcStatus,
-    /// `wpm receipt_doctor` — receipt validation.
     ReceiptDoctor,
 }
 
-impl Wpm4Command {
-    /// Convert command to CLI argument string.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Wpm4Command::Audit => "audit",
-            Wpm4Command::Lean => "lean",
-            Wpm4Command::SpcStatus => "spc_status",
-            Wpm4Command::ReceiptDoctor => "receipt_doctor",
-        }
-    }
+/// Verdict returned by the `wpm` oracle after running a command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WpmVerdict {
+    /// All checks passed.
+    Pass,
+    /// Warnings present but not blocking.
+    Warn,
+    /// One or more failures found.
+    Fail,
+    /// Only partial data available; result is inconclusive.
+    Partial,
+    /// The oracle is not available; result is unknown.
+    NotAvailable,
 }
 
-/// wpm shell integration handler.
-///
-/// Manages discovery of the `wpm` binary and provides safe invocation
-/// of wpm subcommands with proper error handling.
+/// Shell wrapper around the `wpm` oracle binary.
 #[derive(Debug, Clone)]
 pub struct Wasm4pmShell {
-    /// Path to the discovered wpm binary.
     binary_path: PathBuf,
 }
 
 impl Wasm4pmShell {
-    /// Discover the wpm binary using environment variable, PATH lookup, or relative path.
+    /// Auto-discover the `wpm` binary.
     ///
-    /// Discovery order (AC1):
-    /// 1. WPM_BIN environment variable (if set)
-    /// 2. Relative path: ./wpm, ./bin/wpm, ../wpm
-    /// 3. PATH search for `wpm` executable
-    ///
-    /// # Errors
-    ///
-    /// Returns `Wasm4pmError::NotFound` if wpm cannot be located.
+    /// Discovery order:
+    /// 1. `WPM_BIN` env var — if set, path must exist.
+    /// 2. `WPM_PATH` env var — secondary explicit path.
+    /// 3. `WPM_SEARCH_PATHS` — colon-separated list of directories.
+    /// 4. Relative paths: `./wpm`, `./bin/wpm`, `../wpm`.
+    /// 5. `PATH` environment variable.
     pub fn discover() -> Wasm4pmResult<Self> {
-        // Try env var first (AC1: env var)
-        if let Ok(env_path) = std::env::var("WPM_BIN") {
-            let path = PathBuf::from(&env_path);
-            if path.exists() {
-                return Ok(Wasm4pmShell { binary_path: path });
+        // 1. WPM_BIN
+        if let Ok(val) = std::env::var("WPM_BIN") {
+            let p = PathBuf::from(&val);
+            if p.exists() {
+                return Ok(Self { binary_path: p });
             }
-            return Err(Wasm4pmError::EnvError(format!(
-                "WPM_BIN points to non-existent path: {}",
-                env_path
-            )));
+            return Err(Wasm4pmError::EnvError(format!("WPM_BIN={val} does not exist")));
         }
 
-        // Try relative paths (AC1: relative paths)
-        let relative_candidates =
-            [PathBuf::from("wpm"), PathBuf::from("bin/wpm"), PathBuf::from("../wpm")];
-        for candidate in relative_candidates {
-            if candidate.exists() {
-                return Ok(Wasm4pmShell { binary_path: candidate });
+        // 2. WPM_PATH
+        if let Ok(val) = std::env::var("WPM_PATH") {
+            let p = PathBuf::from(&val);
+            if p.exists() {
+                return Ok(Self { binary_path: p });
             }
         }
 
-        // Try PATH search (AC1: PATH lookup)
-        if let Ok(path_var) = std::env::var("PATH") {
-            for path_dir in std::env::split_paths(&path_var) {
-                let full_path = path_dir.join("wpm");
-                if full_path.exists() {
-                    return Ok(Wasm4pmShell { binary_path: full_path });
+        // 3. WPM_SEARCH_PATHS
+        if let Ok(val) = std::env::var("WPM_SEARCH_PATHS") {
+            for dir in val.split(':') {
+                let p = PathBuf::from(dir).join("wpm");
+                if p.exists() {
+                    return Ok(Self { binary_path: p });
                 }
             }
         }
 
-        Err(Wasm4pmError::NotFound(
-            "wpm not found in WPM_BIN env var, relative paths, or PATH".to_string(),
-        ))
-    }
-
-    /// Discover from an explicit path instead of auto-discovery.
-    pub fn from_path(path: impl AsRef<Path>) -> Wasm4pmResult<Self> {
-        let path = path.as_ref();
-        if !path.exists() {
-            return Err(Wasm4pmError::NotFound(format!(
-                "wpm binary not found at {}",
-                path.display()
-            )));
+        // 4. Relative paths
+        for rel in &["./wpm", "./bin/wpm", "../wpm"] {
+            let p = PathBuf::from(rel);
+            if p.exists() {
+                return Ok(Self { binary_path: p });
+            }
         }
-        Ok(Wasm4pmShell { binary_path: path.to_path_buf() })
+
+        // 5. PATH
+        if let Some(path_val) = std::env::var_os("PATH") {
+            for dir in std::env::split_paths(&path_val) {
+                let p = dir.join("wpm");
+                if p.exists() {
+                    return Ok(Self { binary_path: p });
+                }
+            }
+        }
+
+        Err(Wasm4pmError::NotFound)
     }
 
-    /// Return the discovered binary path.
+    /// Create a shell wrapper from an explicit path.
+    pub fn from_path(path: impl Into<PathBuf>) -> Wasm4pmResult<Self> {
+        let p = path.into();
+        if p.exists() {
+            Ok(Self { binary_path: p })
+        } else {
+            Err(Wasm4pmError::NotFound)
+        }
+    }
+
+    /// Return the path to the `wpm` binary.
     pub fn binary_path(&self) -> &Path {
         &self.binary_path
     }
 
-    /// AC2: Execute a wpm command and return the output.
-    ///
-    /// Invokes the wpm binary with the given command and optional arguments.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the command execution fails or the command returns a non-zero exit code.
+    /// Run a `wpm` command with extra arguments.
     pub fn run_command(&self, cmd: Wpm4Command, args: &[&str]) -> Wasm4pmResult<String> {
-        let output =
-            Command::new(&self.binary_path).arg(cmd.as_str()).args(args).output().map_err(|e| {
-                Wasm4pmError::CommandFailed(format!(
-                    "failed to execute wpm {}: {}",
-                    cmd.as_str(),
-                    e
-                ))
-            })?;
+        let cmd_str = match cmd {
+            Wpm4Command::Audit => "audit",
+            Wpm4Command::Lean => "lean",
+            Wpm4Command::SpcStatus => "spc_status",
+            Wpm4Command::ReceiptDoctor => "receipt_doctor",
+        };
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(Wasm4pmError::CommandFailed(format!(
-                "wpm {} exited with error: {}",
-                cmd.as_str(),
-                stderr
-            )));
+        let output = Command::new(&self.binary_path)
+            .arg(cmd_str)
+            .args(args)
+            .output()
+            .map_err(|e| Wasm4pmError::CommandFailed(e.to_string()))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        if output.status.success() {
+            Ok(stdout)
+        } else {
+            Err(Wasm4pmError::CommandFailed(stdout))
         }
-
-        String::from_utf8(output.stdout)
-            .map_err(|_| Wasm4pmError::InvalidOutput("wpm output is not valid UTF-8".to_string()))
     }
 
-    /// AC2: Run `wpm audit` on the provided evidence data.
-    /// Writes evidence to a temp file and passes the path to `wpm audit`.
+    /// Run `wpm audit` on evidence data (writes to a temp file).
     pub fn audit(&self, evidence_data: &str) -> Wasm4pmResult<String> {
-        let temp_file = std::env::temp_dir().join("star_toml_evidence.json");
-        std::fs::write(&temp_file, evidence_data).map_err(|e| {
-            Wasm4pmError::CommandFailed(format!("failed to write evidence file: {}", e))
-        })?;
-
-        self.run_command(Wpm4Command::Audit, &[temp_file.to_string_lossy().as_ref()])
+        use std::io::Write;
+        let tmp_path = std::env::temp_dir().join(format!(
+            "star_toml_wpm_audit_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+        let mut f =
+            std::fs::File::create(&tmp_path).map_err(|e| Wasm4pmError::EnvError(e.to_string()))?;
+        f.write_all(evidence_data.as_bytes()).map_err(|e| Wasm4pmError::EnvError(e.to_string()))?;
+        drop(f);
+        let path = tmp_path.to_string_lossy().into_owned();
+        let result = self.run_command(Wpm4Command::Audit, &[&path]);
+        let _ = std::fs::remove_file(&tmp_path);
+        result
     }
 
-    /// AC2: Run `wpm lean` validation.
+    /// Run `wpm lean`.
     pub fn lean(&self) -> Wasm4pmResult<String> {
         self.run_command(Wpm4Command::Lean, &[])
     }
 
-    /// AC2: Run `wpm spc_status` check.
+    /// Run `wpm spc_status`.
     pub fn spc_status(&self) -> Wasm4pmResult<String> {
         self.run_command(Wpm4Command::SpcStatus, &[])
     }
 
-    /// AC2: Run `wpm receipt_doctor` check.
+    /// Run `wpm receipt_doctor`.
     pub fn receipt_doctor(&self) -> Wasm4pmResult<String> {
         self.run_command(Wpm4Command::ReceiptDoctor, &[])
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_wpm_command_as_str() {
-        assert_eq!(Wpm4Command::Audit.as_str(), "audit");
-        assert_eq!(Wpm4Command::Lean.as_str(), "lean");
-        assert_eq!(Wpm4Command::SpcStatus.as_str(), "spc_status");
-        assert_eq!(Wpm4Command::ReceiptDoctor.as_str(), "receipt_doctor");
+    /// Infer a `WpmVerdict` from command output and exit status.
+    pub fn infer_verdict(output: &str, exit_success: bool) -> WpmVerdict {
+        if !exit_success {
+            return WpmVerdict::Fail;
+        }
+        let lower = output.to_lowercase();
+        if lower.contains("fail") || lower.contains("error") {
+            WpmVerdict::Fail
+        } else if lower.contains("warn") || lower.contains("drift") {
+            WpmVerdict::Warn
+        } else if lower.contains("pass") || lower.contains("ok") || output.trim().is_empty() {
+            WpmVerdict::Pass
+        } else {
+            WpmVerdict::Warn
+        }
     }
 
-    #[test]
-    fn test_wasm4pm_error_display() {
-        let err = Wasm4pmError::NotFound("test".to_string());
-        assert!(err.to_string().contains("wpm binary not found"));
+    /// Run `wpm audit` and return a verdict.
+    pub fn audit_with_verdict(&self, evidence_data: &str) -> WpmVerdict {
+        match self.audit(evidence_data) {
+            Ok(output) => Self::infer_verdict(&output, true),
+            Err(Wasm4pmError::NotFound) => WpmVerdict::NotAvailable,
+            Err(_) => WpmVerdict::Fail,
+        }
+    }
+
+    /// Run `wpm lean` and return a verdict.
+    pub fn lean_with_verdict(&self) -> WpmVerdict {
+        match self.lean() {
+            Ok(output) => Self::infer_verdict(&output, true),
+            Err(Wasm4pmError::NotFound) => WpmVerdict::NotAvailable,
+            Err(_) => WpmVerdict::Fail,
+        }
+    }
+
+    /// Run `wpm spc_status` and return a verdict.
+    pub fn spc_status_with_verdict(&self) -> WpmVerdict {
+        match self.spc_status() {
+            Ok(output) => Self::infer_verdict(&output, true),
+            Err(Wasm4pmError::NotFound) => WpmVerdict::NotAvailable,
+            Err(_) => WpmVerdict::Fail,
+        }
+    }
+
+    /// Run `wpm receipt_doctor` and return a verdict.
+    pub fn receipt_doctor_with_verdict(&self) -> WpmVerdict {
+        match self.receipt_doctor() {
+            Ok(output) => Self::infer_verdict(&output, true),
+            Err(Wasm4pmError::NotFound) => WpmVerdict::NotAvailable,
+            Err(_) => WpmVerdict::Fail,
+        }
     }
 }

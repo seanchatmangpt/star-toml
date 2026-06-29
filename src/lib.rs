@@ -417,7 +417,9 @@ pub mod loader;
 pub mod merge;
 pub mod nouns;
 pub mod ocel;
+pub mod ocel_validation;
 pub mod path;
+pub mod receipt_generation;
 pub mod reports;
 pub mod schema;
 pub mod validation;
@@ -429,7 +431,7 @@ pub use docs::{
 pub use error::{Error, Result};
 pub use events::{AdmissionEvent, ConfigEventKind};
 pub use expand::expand_env_vars;
-pub use integrations::{Wasm4pmError, Wasm4pmShell, Wpm4Command};
+pub use integrations::{Wasm4pmError, Wasm4pmShell, Wpm4Command, WpmVerdict};
 pub use loader::{
     detect_unknown_fields, find_and_load, find_config_file, from_str, load_file, save_file,
     save_pretty, to_string, AdmittedConfig, BoundedSources, Config, ConfigDigest, ConfigFile,
@@ -438,9 +440,11 @@ pub use loader::{
     ValidationReport,
 };
 pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
-pub use nouns::{EvidenceGate, OracleGateVerdict, OracleVerdict};
+pub use nouns::{EvidenceGate, GateReport, OracleGateVerdict, OracleVerdict, VerdictSummary};
 pub use ocel::export_events_to_ocel;
+pub use ocel_validation::validate_ocel_schema;
 pub use path::{resolve_and_validate, PathPolicy, PathWitness};
+pub use receipt_generation::{generate_receipt, validate_receipt, ReceiptJson};
 pub use reports::{
     blake3_hex, CoercedType, EnvOverrideEntry, EnvOverrideReport, LayerEntry, LayerReport,
     SourceEntry, SourceKind, SourceReport,

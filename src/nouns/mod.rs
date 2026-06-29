@@ -4,4 +4,4 @@
 
 pub mod gate;
 
-pub use gate::{EvidenceGate, OracleGateVerdict, OracleVerdict, VerdictSummary};
+pub use gate::{EvidenceGate, GateReport, OracleGateVerdict, OracleVerdict, VerdictSummary};
