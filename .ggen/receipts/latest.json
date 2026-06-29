@@ -1,6 +1,6 @@
 {
-  "operation_id": "11ad14c2-c9b3-4224-9ad7-77c03a51f9ae",
-  "timestamp": "2026-06-28T23:20:41.725983Z",
+  "operation_id": "3673e36a-9122-402e-a295-337e9ffcdb10",
+  "timestamp": "2026-06-29T19:04:37.932954Z",
   "input_hashes": [
     "actuator:ggen-sync@26.6.25",
     "ggen.toml:71fa2efceac0cd92dd178396d0f89d13beb3e6af6d1247ec89efd056c2ef6838",
@@ -10,6 +10,6 @@
   "output_hashes": [
     "./ontology-summary.txt:25c262364cd3dcc54988e92f5f5cd6b96bd0f2c839ec038407832f74709a0a4e"
   ],
-  "signature": "460d8ae6b043d47cc4ae372b2c6325f044042816d6e52a4b8b123fe1ade224ec6749a638f253f476ceb3c08a5f0154fb9fb48208e362d5e261611edfbf8b310e",
-  "previous_receipt_hash": "06ff790bf34e8adddd681ae6c04cdd75f44c319c6e28a787a343cf7f753a2acd"
+  "signature": "fcf35f367a99cbd62672dbad914e38843eb7033ab2b82af77f36f0e7600ee41247a8f1475d43a597034b3340bf0b076f5a17745a26f3f673ae15dae2dfcd960f",
+  "previous_receipt_hash": "eb4f3de7ae9b88d638b9de7061477273b58673915f8546906e52503abf43d87c"
 }
