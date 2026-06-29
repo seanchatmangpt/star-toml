@@ -411,8 +411,10 @@ pub mod docs;
 pub mod error;
 pub mod events;
 pub mod expand;
+pub mod integrations;
 pub mod loader;
 pub mod merge;
+pub mod nouns;
 pub mod ocel;
 pub mod path;
 pub mod reports;
@@ -426,6 +428,7 @@ pub use docs::{
 pub use error::{Error, Result};
 pub use events::{AdmissionEvent, ConfigEventKind};
 pub use expand::expand_env_vars;
+pub use integrations::{Wasm4pmError, Wasm4pmShell, Wpm4Command};
 pub use loader::{
     detect_unknown_fields, find_and_load, find_config_file, from_str, load_file, save_file,
     save_pretty, to_string, AdmittedConfig, BoundedSources, Config, ConfigDigest, ConfigFile,
@@ -434,6 +437,7 @@ pub use loader::{
     ValidationReport,
 };
 pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
+pub use nouns::{EvidenceGate, OracleGateVerdict, OracleVerdict};
 pub use ocel::export_events_to_ocel;
 pub use path::{resolve_and_validate, PathPolicy, PathWitness};
 pub use reports::{

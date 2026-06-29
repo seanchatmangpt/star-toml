@@ -772,6 +772,7 @@ pub struct TrustedLoader {
     /// caller is attempting to validate config against an unadmitted JSON Schema.
     /// Default is `true` (no JSON Schema bridge in use, or schema already admitted).
     json_schema_admitted: bool,
+    oracle_gate: Option<crate::nouns::EvidenceGate>,
 }
 
 impl Default for TrustedLoader {
@@ -784,7 +785,7 @@ impl TrustedLoader {
     /// Create a new empty `TrustedLoader` with no sources.
     #[must_use]
     pub fn new() -> Self {
-        Self { loader: Loader::new(), json_schema_admitted: true }
+        Self { loader: Loader::new(), json_schema_admitted: true, oracle_gate: None }
     }
 
     /// Declare whether the JSON Schema used to shape this config has been admitted
@@ -793,6 +794,16 @@ impl TrustedLoader {
     #[must_use]
     pub fn require_json_schema_admission(mut self, admitted: bool) -> Self {
         self.json_schema_admitted = admitted;
+        self
+    }
+
+    /// AC3: Attach an oracle gate whose verdicts are checked before admission.
+    ///
+    /// If the gate contains any `Fail` verdict, `load_admitted` returns an error
+    /// and no `AdmittedConfig` is produced.
+    #[must_use]
+    pub fn with_oracle_gate(mut self, gate: crate::nouns::EvidenceGate) -> Self {
+        self.oracle_gate = Some(gate);
         self
     }
 
@@ -1652,6 +1663,29 @@ impl TrustedLoader {
         }
 
         let validated = deser.validate()?;
+
+        // AC3: Check oracle gate before admission. A Fail verdict blocks AdmittedConfig production.
+        if let Some(gate) = &self.oracle_gate {
+            if gate.is_blocked() {
+                let blocking = gate
+                    .highest_verdict()
+                    .map(|v| v.reason.as_str())
+                    .unwrap_or("oracle gate blocked admission");
+                let errs = crate::validation::ValidationErrors {
+                    errors: vec![crate::validation::ValidationError {
+                        loc: crate::validation::Loc(vec![]),
+                        kind: crate::validation::ErrorKind::Predicate { code: "oracle_gate_fail" },
+                        severity: crate::validation::Severity::Fatal,
+                        input: None,
+                        msg: format!("oracle gate FAIL: {}", blocking),
+                    }],
+                    title: None,
+                    checks_run: 1,
+                };
+                return Err(Error::Invalid(errs));
+            }
+        }
+
         let config = validated.freeze();
 
         let frozen_result =
