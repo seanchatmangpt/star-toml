@@ -1,6 +1,6 @@
 [package]
 name = "star-toml-derive"
-version = "26.6.29"
+version = "26.6.30"
 edition = "2021"
 rust-version = "1.82"
 authors = ["Sean Chatman <sean@chatmangpt.com>"]
