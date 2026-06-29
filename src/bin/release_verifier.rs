@@ -135,9 +135,10 @@ fn main() {
         "config_test_crate_present",
         "config_test_suite_passes",
     ]);
+    let s10 = pass(&["wasm_pack_web_build", "wasm_pack_nodejs_build"]);
 
     let sections_all_pass =
-        [s1, s2, s3, s4, s5, s6, s7, s8, s9].iter().all(|&s| s == "PASS") && failed == 0;
+        [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10].iter().all(|&s| s == "PASS") && failed == 0;
     let final_standing = if sections_all_pass { "ADMITTED" } else { "REFUSED" };
 
     println!("## v26.6.29 Full ST-JSON Admission Release — Standing\n");
@@ -152,7 +153,8 @@ fn main() {
     println!("| 7 | DOC Diagnostics             | **{}** |", s7);
     println!("| 8 | SCH-JSON Diagnostics        | **{}** |", s8);
     println!("| 9 | DfCM Fixture Coverage       | **{}** |", s9);
-    println!("|10 | Final Standing              | **{}** |", final_standing);
+    println!("|10 | star-toml-wasm              | **{}** |", s10);
+    println!("|11 | Final Standing              | **{}** |", final_standing);
 
     println!("\n## Final: {}", final_standing);
 
@@ -798,6 +800,54 @@ fn run_release_checks(dev_mode: bool) -> Vec<Check> {
                     ok = false;
                     let stderr = String::from_utf8_lossy(&output.stderr);
                     note = format!("JSON Schema bridge tests failed: {}", stderr.trim());
+                }
+            }
+        }
+        (ok, note)
+    }));
+
+    // 24. wasm_pack_web_build
+    results.push(check!("wasm_pack_web_build", {
+        let mut ok = true;
+        let mut note = "Verified: wasm-pack build --target web succeeds.".to_string();
+        match Command::new("wasm-pack")
+            .args(&["build", "--target", "web", "--quiet"])
+            .current_dir(root.join("../star-toml-wasm"))
+            .output()
+        {
+            Err(e) => {
+                ok = false;
+                note = format!("Failed to invoke wasm-pack: {}", e);
+            }
+            Ok(output) => {
+                if !output.status.success() {
+                    ok = false;
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    note = format!("wasm-pack web build failed: {}", stderr.trim());
+                }
+            }
+        }
+        (ok, note)
+    }));
+
+    // 25. wasm_pack_nodejs_build
+    results.push(check!("wasm_pack_nodejs_build", {
+        let mut ok = true;
+        let mut note = "Verified: wasm-pack build --target nodejs succeeds.".to_string();
+        match Command::new("wasm-pack")
+            .args(&["build", "--target", "nodejs", "--quiet"])
+            .current_dir(root.join("../star-toml-wasm"))
+            .output()
+        {
+            Err(e) => {
+                ok = false;
+                note = format!("Failed to invoke wasm-pack: {}", e);
+            }
+            Ok(output) => {
+                if !output.status.success() {
+                    ok = false;
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    note = format!("wasm-pack nodejs build failed: {}", stderr.trim());
                 }
             }
         }
