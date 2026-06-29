@@ -256,6 +256,85 @@ pub fn find_path_traversal_diagnostics(text: &str) -> Vec<Diagnostic> {
     out
 }
 
+// ---------------------------------------------------------------------------
+// DOC diagnostic projection
+// ---------------------------------------------------------------------------
+
+/// Project DOC-001..020 from a `ConfigDocumentationModel` into LSP diagnostics.
+/// Infallible — returns empty vec if the model cannot be loaded.
+pub fn project_doc_diagnostics(model: &star_toml::ConfigDocumentationModel) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+
+    for d in star_toml::docs::validate_docs_integrity(model) {
+        let severity = doc_severity(&d.severity);
+        let range = document_start();
+        let mut diag = make(range, severity, d.code, &d.message);
+        if !d.repair_hint.is_empty() {
+            diag.data = Some(serde_json::json!({
+                "code": d.code,
+                "repair_hint": d.repair_hint
+            }));
+        }
+        diag.source = Some("star-toml".to_owned());
+        out.push(diag);
+    }
+
+    // CLI-layer checks: machine-readable export and freshness
+    if let Some(d) = star_toml::docs::check_machine_readable_export(model) {
+        let mut diag = make(document_start(), doc_severity(&d.severity), d.code, &d.message);
+        diag.source = Some("star-toml".to_owned());
+        out.push(diag);
+    }
+    if let Some(d) = star_toml::docs::check_docs_out_of_date(model) {
+        let mut diag = make(document_start(), doc_severity(&d.severity), d.code, &d.message);
+        diag.source = Some("star-toml".to_owned());
+        out.push(diag);
+    }
+    for d in star_toml::docs::check_manual_standing_claims() {
+        let mut diag = make(document_start(), doc_severity(&d.severity), d.code, &d.message);
+        diag.source = Some("star-toml".to_owned());
+        out.push(diag);
+    }
+
+    out
+}
+
+fn doc_severity(s: &str) -> DiagnosticSeverity {
+    match s {
+        "Fatal" | "Error" => DiagnosticSeverity::ERROR,
+        "Warning" => DiagnosticSeverity::WARNING,
+        _ => DiagnosticSeverity::INFORMATION,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SCH-JSON diagnostic projection
+// ---------------------------------------------------------------------------
+
+/// Project SCH-JSON-001..016 from a JSON Schema text into LSP diagnostics.
+/// Infallible — returns empty vec on any parse/import error (the error itself becomes a diagnostic).
+pub fn project_sch_json_diagnostics(json_text: &str) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    match star_toml_json_schema::import_json_schema(json_text, true) {
+        Ok(_) => {}
+        Err(schema_diags) => {
+            for d in schema_diags {
+                let severity = doc_severity(&d.severity);
+                let mut diag = make(document_start(), severity, d.code, &d.trigger);
+                diag.source = Some("star-toml-json-schema".to_owned());
+                if !d.repair_guidance.is_empty() {
+                    diag.data = Some(serde_json::json!({
+                        "code": d.code,
+                        "repair_hint": d.repair_guidance
+                    }));
+                }
+                out.push(diag);
+            }
+        }
+    }
+    out
+}
+
 /// Scan for string values that look like OCEL/q_config references.
 pub fn find_authority_boundary_diagnostics(text: &str) -> Vec<Diagnostic> {
     let mut out = Vec::new();

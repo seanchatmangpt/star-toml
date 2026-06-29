@@ -1,8 +1,9 @@
 use std::{path::PathBuf, sync::Arc};
 
 use lsp_max::{jsonrpc::Result, lsp_types_max::*, Client, LanguageServer};
+use serde_json::Value;
 
-use crate::state::ServerState;
+use crate::{commands, state::ServerState};
 
 pub struct StarTomlLanguageServer {
     pub(crate) state: Arc<ServerState>,
@@ -63,6 +64,12 @@ impl LanguageServer for StarTomlLanguageServer {
                         },
                     },
                 )),
+                execute_command_provider: Some(ExecuteCommandOptions {
+                    commands: commands::COMMANDS.iter().map(|s| s.to_string()).collect(),
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                }),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -146,17 +153,28 @@ impl LanguageServer for StarTomlLanguageServer {
                     Some(NumberOrString::String(c)) => c.as_str(),
                     _ => return None,
                 };
-                let title = match code {
-                    DUPLICATE_KEY => "Remove duplicate key (manual edit required)",
-                    PATH_TRAVERSAL => "Remove path traversal sequence",
-                    RELATIVE_ONLY_ABSOLUTE => "Convert to relative path",
-                    INVALID_TOML => "Fix TOML syntax",
+                let (title, cmd) = match code {
+                    DUPLICATE_KEY => ("Remove duplicate key (manual edit required)", None),
+                    PATH_TRAVERSAL => ("Remove path traversal sequence", None),
+                    RELATIVE_ONLY_ABSOLUTE => ("Convert to relative path", None),
+                    INVALID_TOML => ("Fix TOML syntax", None),
+                    "DOC-010" | "DOC-014" | "DOC-020" => {
+                        ("Run docs export to refresh", Some("starToml.runDocsExport"))
+                    }
+                    "SCH-JSON-007" | "SCH-JSON-016" => {
+                        ("Review JSON Schema — see repair hint", None)
+                    }
                     _ => return None,
                 };
                 Some(CodeActionOrCommand::CodeAction(CodeAction {
                     title: title.to_owned(),
                     kind: Some(CodeActionKind::QUICKFIX),
                     diagnostics: Some(vec![d]),
+                    command: cmd.map(|c| Command {
+                        title: title.to_owned(),
+                        command: c.to_owned(),
+                        arguments: None,
+                    }),
                     is_preferred: Some(true),
                     ..Default::default()
                 }))
@@ -164,5 +182,12 @@ impl LanguageServer for StarTomlLanguageServer {
             .collect();
 
         Ok(if actions.is_empty() { None } else { Some(actions) })
+    }
+
+    async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
+        let (success, output) = commands::execute(&params.command, &self.state.workspace_root);
+        let msg_type = if success { MessageType::INFO } else { MessageType::ERROR };
+        self.client.log_message(msg_type, &output).await;
+        Ok(Some(Value::String(output)))
     }
 }

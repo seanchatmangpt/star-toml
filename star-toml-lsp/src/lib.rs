@@ -2,9 +2,11 @@
 #![deny(clippy::print_stdout)]
 
 pub mod analyzer;
+pub mod commands;
 pub mod diagnostics;
 pub mod gate;
 pub mod server;
+pub mod standing;
 pub mod state;
 pub mod telemetry;
 

@@ -19,6 +19,7 @@ use toml::Value;
 use crate::diagnostics::{
     self, duplicate_key, find_authority_boundary_diagnostics, find_key_range_in_text,
     find_path_traversal_diagnostics, invalid_toml, line_start_offsets, offset_to_position,
+    project_doc_diagnostics, project_sch_json_diagnostics,
 };
 
 fn pos(line: u32, col: u32) -> Position {
@@ -83,6 +84,16 @@ impl StarTomlDocumentAnalyzer {
 
         // 4. OCEL/q_config authority boundary notes
         self.diagnostics.extend(find_authority_boundary_diagnostics(&self.text));
+
+        // 5. DOC-001..020 from workspace docs model (if docs/config_metadata.json present)
+        if let Some(model) = load_docs_model() {
+            self.diagnostics.extend(project_doc_diagnostics(&model));
+        }
+
+        // 6. SCH-JSON-001..016 if this looks like a JSON Schema document
+        if self.uri.as_str().ends_with(".json") && self.text.contains("\"$schema\"") {
+            self.diagnostics.extend(project_sch_json_diagnostics(&self.text));
+        }
     }
 
     /// Merge validation errors from a caller-supplied `ValidationErrors`.
@@ -147,6 +158,63 @@ impl StarTomlDocumentAnalyzer {
                                 "\n*Validator `{}`*: {}\n",
                                 validator.name, validator.description
                             ));
+                        }
+                    }
+
+                    // Authority boundary
+                    let ab = &domain.authority_boundary;
+                    let defer = ab.defer_to.as_deref().unwrap_or("undeclared");
+                    docs_md.push_str(&format!("\n**Authority**: `{}`", defer));
+                    if !ab.may_control.is_empty() {
+                        docs_md
+                            .push_str(&format!(" | may_control: `{}`", ab.may_control.join(", ")));
+                    }
+                    docs_md.push('\n');
+
+                    // Override policy
+                    let op = &domain.override_policy;
+                    let override_str = if op.allowed { "allowed" } else { "not allowed" };
+                    docs_md.push_str(&format!("**Override**: `{}`\n", override_str));
+
+                    // Receipt / docs freshness
+                    let receipt_state = if let Some(ref rb) = domain.receipt_binding {
+                        if rb.documentation_model_digest.is_empty() {
+                            "missing"
+                        } else {
+                            "bound"
+                        }
+                    } else {
+                        "missing"
+                    };
+                    docs_md.push_str(&format!("**Receipt**: `{}`\n", receipt_state));
+
+                    // Release impact: check DOC diagnostics for this field
+                    let field_diags = project_doc_diagnostics(&docs);
+                    let fatal_diags: Vec<_> = field_diags
+                        .iter()
+                        .filter(|d| {
+                            d.severity == Some(lsp_max::lsp_types_max::DiagnosticSeverity::ERROR)
+                        })
+                        .collect();
+                    if fatal_diags.is_empty() {
+                        docs_md.push_str(
+                            "\n> Release impact: ADMITTED if all other predicates pass\n",
+                        );
+                    } else {
+                        for fd in &fatal_diags {
+                            let code = fd
+                                .code
+                                .as_ref()
+                                .and_then(|c| {
+                                    if let lsp_max::lsp_types_max::NumberOrString::String(s) = c {
+                                        Some(s.as_str())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap_or("?");
+                            docs_md
+                                .push_str(&format!("\n> ⚠ Release impact: REFUSED — {}\n", code));
                         }
                     }
                 }
