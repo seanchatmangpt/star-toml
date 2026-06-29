@@ -407,6 +407,7 @@
     missing_docs
 )]
 
+pub mod docs;
 pub mod error;
 pub mod events;
 pub mod expand;
@@ -418,19 +419,23 @@ pub mod reports;
 pub mod schema;
 pub mod validation;
 
+pub use docs::{
+    AuthorityBoundary, ConfigDocumentationModel, ConfigDomain, ConfigField, ConfigValidator,
+    Counterexample, OverridePolicy, ReceiptBinding,
+};
 pub use error::{Error, Result};
 pub use events::{AdmissionEvent, ConfigEventKind};
 pub use expand::expand_env_vars;
 pub use loader::{
-    find_and_load, find_config_file, from_str, load_file, save_file, save_pretty, to_string,
-    AdmittedConfig, BoundedSources, Config, ConfigDigest, ConfigFile, ConfigLifecycle,
-    ConfigSourceReport, ConfigWitness, Deserialized, EnvResolved, Frozen, FrozenLoadResult,
-    Loader, Merged, Raw, TrustedConfig, TrustedLoader, Validated, ValidationReport,
-    detect_unknown_fields,
+    detect_unknown_fields, find_and_load, find_config_file, from_str, load_file, save_file,
+    save_pretty, to_string, AdmittedConfig, BoundedSources, Config, ConfigDigest, ConfigFile,
+    ConfigLifecycle, ConfigSourceReport, ConfigWitness, Deserialized, EnvResolved, Frozen,
+    FrozenLoadResult, Loader, Merged, Raw, TrustedConfig, TrustedLoader, Validated,
+    ValidationReport,
 };
-pub use path::{resolve_and_validate, PathPolicy, PathWitness};
 pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
 pub use ocel::export_events_to_ocel;
+pub use path::{resolve_and_validate, PathPolicy, PathWitness};
 pub use reports::{
     blake3_hex, CoercedType, EnvOverrideEntry, EnvOverrideReport, LayerEntry, LayerReport,
     SourceEntry, SourceKind, SourceReport,

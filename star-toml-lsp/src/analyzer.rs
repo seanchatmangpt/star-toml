@@ -8,11 +8,12 @@
 //!
 //! Does NOT compute q_config. Does NOT construct AdmittedConfig<T> or ConfigWitness.
 
+use std::collections::HashMap;
+
 use lsp_max::lsp_types_max::{
     CompletionItem, CompletionItemKind, Diagnostic, DocumentSymbol, Hover, HoverContents,
     MarkupContent, MarkupKind, Position, Range, SymbolKind, Url,
 };
-use std::collections::HashMap;
 use toml::Value;
 
 use crate::diagnostics::{
@@ -36,12 +37,7 @@ pub struct StarTomlDocumentAnalyzer {
 
 impl StarTomlDocumentAnalyzer {
     pub fn new(uri: Url, text: String) -> Self {
-        let mut a = Self {
-            uri,
-            text,
-            parsed: None,
-            diagnostics: Vec::new(),
-        };
+        let mut a = Self { uri, text, parsed: None, diagnostics: Vec::new() };
         a.analyze();
         a
     }
@@ -93,8 +89,7 @@ impl StarTomlDocumentAnalyzer {
     /// Use this after deserializing into a typed struct to surface schema violations.
     pub fn merge_validation_errors(&mut self, errors: &star_toml::ValidationErrors) {
         for e in errors.errors() {
-            self.diagnostics
-                .push(diagnostics::from_validation_error(e, &self.text));
+            self.diagnostics.push(diagnostics::from_validation_error(e, &self.text));
         }
     }
 
@@ -118,10 +113,51 @@ impl StarTomlDocumentAnalyzer {
             format!("[{}]", table_path.join("."))
         };
 
+        let mut docs_md = String::new();
+        if let Some(docs) = load_docs_model() {
+            let search_domain = if table_path.is_empty() { "system" } else { &table_path[0] };
+            if let Some(domain) = docs.domains.iter().find(|d| d.id == search_domain) {
+                if let Some(field) = domain.fields.iter().find(|f| f.name == key) {
+                    docs_md = format!(
+                        "\n\n**Description**: {}\n\
+                         * **Type**: `{}`\n\
+                         * **Required**: `{}`\n\
+                         * **Stability**: `{}`\n",
+                        field.description, field.r#type, field.required, field.stability
+                    );
+                    if let Some(ref default) = field.default {
+                        docs_md.push_str(&format!("* **Default**: `{}`\n", default));
+                    }
+                    if !field.allowed_values.is_empty() {
+                        docs_md.push_str(&format!(
+                            "* **Allowed Values**: `{:?}`\n",
+                            field.allowed_values
+                        ));
+                    }
+                    if !field.forbidden_values.is_empty() {
+                        docs_md.push_str(&format!(
+                            "* **Forbidden Values**: `{:?}`\n",
+                            field.forbidden_values
+                        ));
+                    }
+                    for val_ref in &field.validator_refs {
+                        if let Some(validator) = domain.validators.iter().find(|v| v.id == *val_ref)
+                        {
+                            docs_md.push_str(&format!(
+                                "\n*Validator `{}`*: {}\n",
+                                validator.name, validator.description
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
         let md = format!(
             "**`{key}`** — *{kind_str}* in `{scope}`\n\n\
-             ```toml\n{key} = {preview}\n```\n\n\
-             > star-toml-lsp: diagnostics only — does not grant q_config standing."
+             ```toml\n{key} = {preview}\n```{}\n\n\
+             > star-toml-lsp: diagnostics only — does not grant q_config standing.",
+            docs_md
         );
 
         Some(Hover {
@@ -239,11 +275,13 @@ fn token_at(text: &str, line: u32, character: u32) -> Option<String> {
     let col = character as usize;
     let is_ident = |c: char| c.is_alphanumeric() || c == '_' || c == '-';
     let start = src_line[..col].rfind(|c: char| !is_ident(c)).map_or(0, |p| p + 1);
-    let end = src_line[col..]
-        .find(|c: char| !is_ident(c))
-        .map_or(src_line.len(), |p| col + p);
+    let end = src_line[col..].find(|c: char| !is_ident(c)).map_or(src_line.len(), |p| col + p);
     let tok = src_line[start..end].trim();
-    if tok.is_empty() { None } else { Some(tok.to_owned()) }
+    if tok.is_empty() {
+        None
+    } else {
+        Some(tok.to_owned())
+    }
 }
 
 fn toml_kind_str(val: &Value) -> &'static str {
@@ -259,7 +297,11 @@ fn toml_kind_str(val: &Value) -> &'static str {
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max { s.to_owned() } else { format!("{}…", &s[..max]) }
+    if s.len() <= max {
+        s.to_owned()
+    } else {
+        format!("{}…", &s[..max])
+    }
 }
 
 fn collect_symbols(
@@ -283,8 +325,8 @@ fn collect_symbols(
             Value::Datetime(_) => (SymbolKind::PROPERTY, "datetime"),
         };
 
-        let range = find_key_range_in_text(text, &full_key)
-            .unwrap_or(diagnostics::document_start());
+        let range =
+            find_key_range_in_text(text, &full_key).unwrap_or(diagnostics::document_start());
 
         #[allow(deprecated)]
         out.push(DocumentSymbol {
@@ -296,10 +338,19 @@ fn collect_symbols(
             children: {
                 let mut ch = Vec::new();
                 collect_symbols(child, &full_key, text, _line_starts, &mut ch);
-                if ch.is_empty() { None } else { Some(ch) }
+                if ch.is_empty() {
+                    None
+                } else {
+                    Some(ch)
+                }
             },
             tags: None,
             deprecated: None,
         });
     }
+}
+
+fn load_docs_model() -> Option<star_toml::ConfigDocumentationModel> {
+    let content = std::fs::read_to_string("docs/config_metadata.json").ok()?;
+    serde_json::from_str(&content).ok()
 }

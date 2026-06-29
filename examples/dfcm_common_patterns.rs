@@ -117,12 +117,14 @@ fn main() {
     // apply env policies, run type schema checks, perform path validation, rewrite,
     // and finally generate a witness.
 
-    let loader = TrustedLoader::new()
-        .layer_str(r#"
+    let loader = TrustedLoader::new().layer_str(
+        r#"
             name = "worker-service"
             port = 9000
             profile = "default"
-        "#, "defaults");
+        "#,
+        "defaults",
+    );
 
     let admitted = loader.load_admitted::<ServiceConfig>();
     match admitted {

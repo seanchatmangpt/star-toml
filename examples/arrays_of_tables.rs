@@ -39,8 +39,7 @@ fn main() {
     println!("--- Arrays of Tables Example ---");
 
     // 1. Load valid workers.toml
-    let loader = TrustedLoader::new()
-        .layer_file("examples/config_patterns/workers.toml");
+    let loader = TrustedLoader::new().layer_file("examples/config_patterns/workers.toml");
 
     match loader.load_admitted::<AppConfig>() {
         Ok(admitted) => {
@@ -56,13 +55,15 @@ fn main() {
 
     // 2. Load invalid arrays of tables setup with unknown fields
     // We expect this to fail under strict mode (by default).
-    let loader_bad = TrustedLoader::new()
-        .layer_str(r#"
+    let loader_bad = TrustedLoader::new().layer_str(
+        r#"
             [[workers]]
             name = "email"
             threads = 4
             extra = "must_fail"
-        "#, "invalid_workers");
+        "#,
+        "invalid_workers",
+    );
 
     match loader_bad.load_admitted::<AppConfig>() {
         Ok(_) => {

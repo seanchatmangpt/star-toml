@@ -2,8 +2,10 @@
 //!
 //! Run with: `cargo run --example ocel_lifecycle_export`
 
-use star_toml::events::{AdmissionEvent, ConfigEventKind};
-use star_toml::export_events_to_ocel;
+use star_toml::{
+    events::{AdmissionEvent, ConfigEventKind},
+    export_events_to_ocel,
+};
 
 fn main() {
     println!("--- OCEL Lifecycle Export Example ---");

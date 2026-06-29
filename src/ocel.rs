@@ -40,9 +40,7 @@ pub fn export_events_to_ocel(events: &[AdmissionEvent]) -> OcelLog {
             Object::new(&run_obj_id, "ConfigRun")
                 .with_attribute(OcelAttribute::string("run_id", &ev.run_id))
         });
-        e2o_links.push(
-            EventObjectLink::new(&ev.event_id, &run_obj_id).qualified("belongs_to_run"),
-        );
+        e2o_links.push(EventObjectLink::new(&ev.event_id, &run_obj_id).qualified("belongs_to_run"));
 
         for obj_id in &ev.object_refs {
             let obj_type = if obj_id.starts_with("source_") {
@@ -61,11 +59,8 @@ pub fn export_events_to_ocel(events: &[AdmissionEvent]) -> OcelLog {
                 "ConfigObject"
             };
 
-            ocel_objects
-                .entry(obj_id.clone())
-                .or_insert_with(|| Object::new(obj_id, obj_type));
-            e2o_links
-                .push(EventObjectLink::new(&ev.event_id, obj_id).qualified("relates_to"));
+            ocel_objects.entry(obj_id.clone()).or_insert_with(|| Object::new(obj_id, obj_type));
+            e2o_links.push(EventObjectLink::new(&ev.event_id, obj_id).qualified("relates_to"));
         }
 
         ocel_events.push(ocel_ev);

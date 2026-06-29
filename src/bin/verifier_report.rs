@@ -81,10 +81,7 @@ fn run_checks() -> Vec<Check> {
         // load_frozen records all sources in SourceReport
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"ok\"\nport = 8080\n");
-        let r = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_frozen::<Cfg>()
-            .unwrap();
+        let r = TrustedLoader::new().layer_file(&dir.join("c.toml")).load_frozen::<Cfg>().unwrap();
         r.source_report.entries.iter().all(|e| e.digest.is_some() || !e.found)
     }));
 
@@ -150,7 +147,8 @@ fn run_checks() -> Vec<Check> {
             .load_frozen::<Cfg>()
             .unwrap();
         std::env::remove_var("VR7_PORT");
-        let found = r.env_report.entries.iter().filter(|e| e.accepted).any(|e| e.mapped_path == "port");
+        let found =
+            r.env_report.entries.iter().filter(|e| e.accepted).any(|e| e.mapped_path == "port");
         found
     }));
 
@@ -159,9 +157,7 @@ fn run_checks() -> Vec<Check> {
     results.push(check!("unknown_field_accepted_in_trusted_mode", {
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"ok\"\nport = 8080\nextra = \"bad\"\n");
-        let r = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_admitted::<Cfg>();
+        let r = TrustedLoader::new().layer_file(&dir.join("c.toml")).load_admitted::<Cfg>();
         r.is_err()
     }));
 
@@ -169,9 +165,7 @@ fn run_checks() -> Vec<Check> {
     results.push(check!("validation_not_run", {
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"\"\nport = 80\n");
-        let r = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_frozen::<Cfg>();
+        let r = TrustedLoader::new().layer_file(&dir.join("c.toml")).load_frozen::<Cfg>();
         // load_frozen runs validation; invalid config must fail
         r.is_err()
     }));
@@ -226,8 +220,10 @@ fn run_checks() -> Vec<Check> {
     // Must also catch Windows-style separator bypass: "foo\..\..\etc\passwd" on Unix
     results.push(check!("path_traversal_accepted", {
         let source = std::path::Path::new("/tmp/config.toml");
-        let unix_traversal = resolve_and_validate("../etc/passwd", source, &PathPolicy::BlockForbidden);
-        let win_traversal = resolve_and_validate("foo\\..\\..\\etc\\passwd", source, &PathPolicy::BlockForbidden);
+        let unix_traversal =
+            resolve_and_validate("../etc/passwd", source, &PathPolicy::BlockForbidden);
+        let win_traversal =
+            resolve_and_validate("foo\\..\\..\\etc\\passwd", source, &PathPolicy::BlockForbidden);
         unix_traversal.is_err() && win_traversal.is_err()
     }));
 
@@ -245,7 +241,8 @@ fn run_checks() -> Vec<Check> {
             "data/file.csv",
             source,
             &PathPolicy::Sandbox { root: PathBuf::from("/home/user/project") },
-        ).unwrap();
+        )
+        .unwrap();
         resolved == PathBuf::from("/home/user/project/data/file.csv")
     }));
 
@@ -253,14 +250,10 @@ fn run_checks() -> Vec<Check> {
     results.push(check!("nondeterministic_save", {
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"ok\"\nport = 8080\n");
-        let r1 = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_admitted::<Cfg>()
-            .unwrap();
-        let r2 = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_admitted::<Cfg>()
-            .unwrap();
+        let r1 =
+            TrustedLoader::new().layer_file(&dir.join("c.toml")).load_admitted::<Cfg>().unwrap();
+        let r2 =
+            TrustedLoader::new().layer_file(&dir.join("c.toml")).load_admitted::<Cfg>().unwrap();
         r1.witness().hash() == r2.witness().hash()
     }));
 
@@ -280,20 +273,14 @@ fn run_checks() -> Vec<Check> {
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"\"\nport = 80\n");
         // Invalid config must not produce a frozen result
-        TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_frozen::<Cfg>()
-            .is_err()
+        TrustedLoader::new().layer_file(&dir.join("c.toml")).load_frozen::<Cfg>().is_err()
     }));
 
     // 18. witness_missing_source_digest
     results.push(check!("witness_missing_source_digest", {
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"ok\"\nport = 8080\n");
-        let r = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_frozen::<Cfg>()
-            .unwrap();
+        let r = TrustedLoader::new().layer_file(&dir.join("c.toml")).load_frozen::<Cfg>().unwrap();
         r.source_report.entries.iter().filter(|e| e.found).all(|e| e.digest.is_some())
     }));
 
@@ -315,10 +302,8 @@ fn run_checks() -> Vec<Check> {
     results.push(check!("witness_missing_validation_report", {
         let dir = make_temp_dir();
         write_toml(&dir, "c.toml", "name = \"ok\"\nport = 8080\n");
-        let r = TrustedLoader::new()
-            .layer_file(&dir.join("c.toml"))
-            .load_admitted::<Cfg>()
-            .unwrap();
+        let r =
+            TrustedLoader::new().layer_file(&dir.join("c.toml")).load_admitted::<Cfg>().unwrap();
         // Witness includes validation fitness
         !r.witness().hash().is_empty()
     }));
@@ -370,8 +355,10 @@ fn run_checks() -> Vec<Check> {
         );
         let log = star_toml::ocel::export_events_to_ocel(&[event]);
         // OCEL must not carry q_config on any object or event
-        let no_q_on_objects = log.objects().iter().all(|o| o.attributes().iter().all(|a| a.key != "q_config"));
-        let no_q_on_events = log.events().iter().all(|e| e.attributes().iter().all(|a| a.key != "q_config"));
+        let no_q_on_objects =
+            log.objects().iter().all(|o| o.attributes().iter().all(|a| a.key != "q_config"));
+        let no_q_on_events =
+            log.events().iter().all(|e| e.attributes().iter().all(|a| a.key != "q_config"));
         no_q_on_objects && no_q_on_events
     }));
 
@@ -393,13 +380,7 @@ fn main() {
     for (i, c) in checks.iter().enumerate() {
         let status = if c.passed { "PASS" } else { "FAIL" };
         let cardinality = if c.passed { 0 } else { 1 };
-        report.push_str(&format!(
-            "| {} | {} | {} | {} |\n",
-            i + 1,
-            c.name,
-            status,
-            cardinality
-        ));
+        report.push_str(&format!("| {} | {} | {} | {} |\n", i + 1, c.name, status, cardinality));
     }
 
     fs::write("VERIFIER_REPORT.md", &report).expect("write VERIFIER_REPORT.md");

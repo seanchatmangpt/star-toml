@@ -26,9 +26,9 @@ fn make_analyzer(toml: &str) -> StarTomlDocumentAnalyzer {
 }
 
 fn has_code(a: &StarTomlDocumentAnalyzer, code: &str) -> bool {
-    a.diagnostics().iter().any(|d| {
-        matches!(&d.code, Some(lsp_max::lsp_types_max::NumberOrString::String(c)) if c == code)
-    })
+    a.diagnostics().iter().any(
+        |d| matches!(&d.code, Some(lsp_max::lsp_types_max::NumberOrString::String(c)) if c == code),
+    )
 }
 
 fn diags_with_code(a: &StarTomlDocumentAnalyzer, code: &str) -> usize {
@@ -142,10 +142,7 @@ ocel_standing = true
 "#;
     // The line contains "ocel" + "standing" → should trigger advisory
     let a = make_analyzer(toml);
-    assert!(
-        has_code(&a, OCEL_NOT_STANDING),
-        "expected ocel_history_not_standing advisory"
-    );
+    assert!(has_code(&a, OCEL_NOT_STANDING), "expected ocel_history_not_standing advisory");
 }
 
 #[test]
@@ -239,14 +236,23 @@ fn test_lsp_does_not_compute_q_config() {
         // String mentions in diagnostic messages are fine.
         let call_sites: Vec<_> = src
             .lines()
-            .filter(|l| l.contains(".load_admitted(") && !l.trim_start().starts_with("//") && !l.contains('"'))
+            .filter(|l| {
+                l.contains(".load_admitted(")
+                    && !l.trim_start().starts_with("//")
+                    && !l.contains('"')
+            })
             .collect();
         assert!(call_sites.is_empty(), "LSP must not call load_admitted(): {call_sites:?}");
         // Only flag bare assignments, not diagnostic message strings
         let q_assignments: Vec<_> = src
             .lines()
-            .filter(|l| l.contains("q_config = 1") && !l.contains('"') && !l.trim_start().starts_with("//"))
+            .filter(|l| {
+                l.contains("q_config = 1") && !l.contains('"') && !l.trim_start().starts_with("//")
+            })
             .collect();
-        assert!(q_assignments.is_empty(), "LSP must not assign q_config standing: {q_assignments:?}");
+        assert!(
+            q_assignments.is_empty(),
+            "LSP must not assign q_config standing: {q_assignments:?}"
+        );
     }
 }

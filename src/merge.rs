@@ -90,11 +90,8 @@ pub fn deep_merge_traced(
     match (base, overlay) {
         (Value::Table(base_tbl), Value::Table(overlay_tbl)) => {
             for (key, val) in overlay_tbl {
-                let child_path = if prefix.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{prefix}.{key}")
-                };
+                let child_path =
+                    if prefix.is_empty() { key.clone() } else { format!("{prefix}.{key}") };
                 match base_tbl.get_mut(&key) {
                     Some(existing) => {
                         deep_merge_traced(existing, val, layer_id, &child_path, winner_map);
@@ -124,11 +121,7 @@ fn record_all_leaves(value: &Value, layer_id: &str, prefix: &str, winner_map: &m
     match value {
         Value::Table(tbl) => {
             for (key, val) in tbl {
-                let child = if prefix.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{prefix}.{key}")
-                };
+                let child = if prefix.is_empty() { key.clone() } else { format!("{prefix}.{key}") };
                 record_all_leaves(val, layer_id, &child, winner_map);
             }
         }
@@ -371,11 +364,7 @@ mod tests {
                 Value::Table(t) => t
                     .iter()
                     .flat_map(|(k, v)| {
-                        let p = if prefix.is_empty() {
-                            k.clone()
-                        } else {
-                            format!("{prefix}.{k}")
-                        };
+                        let p = if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
                         leaves(v, &p)
                     })
                     .collect(),

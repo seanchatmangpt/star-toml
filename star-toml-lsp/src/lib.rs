@@ -8,10 +8,9 @@ pub mod server;
 pub mod state;
 pub mod telemetry;
 
+use lsp_max::{LspService, Server};
 pub use server::StarTomlLanguageServer;
 pub use state::ServerState;
-
-use lsp_max::{LspService, Server};
 
 /// Run the language server over stdio (the transport editors and Claude Code use).
 pub async fn run_stdio() -> anyhow::Result<()> {

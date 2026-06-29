@@ -26,8 +26,8 @@ fn main() {
     println!("--- Exploratory Unknown Fields Example ---");
 
     // Load invalid_unknown_field.toml which has the extra field: `extra_field = "must_fail"`
-    let loader = TrustedLoader::new()
-        .layer_file("examples/config_patterns/invalid_unknown_field.toml");
+    let loader =
+        TrustedLoader::new().layer_file("examples/config_patterns/invalid_unknown_field.toml");
 
     // DfCM Invariant: load_admitted_exploratory() allows unknown fields,
     // but should only be used in non-production environments.

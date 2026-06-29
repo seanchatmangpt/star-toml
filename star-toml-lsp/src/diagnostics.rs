@@ -28,10 +28,7 @@ fn pos(line: u32, col: u32) -> Position {
 }
 
 pub fn point_range(line: u32, col: u32, len: u32) -> Range {
-    Range {
-        start: pos(line, col),
-        end: pos(line, col + len),
-    }
+    Range { start: pos(line, col), end: pos(line, col + len) }
 }
 
 pub fn full_line_range(line: u32, text: &str) -> Range {
@@ -65,40 +62,59 @@ fn make(
 
 /// Diagnostic for a TOML parse failure.
 pub fn invalid_toml(range: Range, detail: &str) -> Diagnostic {
-    make(range, DiagnosticSeverity::ERROR, INVALID_TOML,
-        format!("TOML parse error: {detail}"))
+    make(range, DiagnosticSeverity::ERROR, INVALID_TOML, format!("TOML parse error: {detail}"))
 }
 
 /// Diagnostic for a key present in the TOML file but absent from the typed schema.
 pub fn unknown_field(range: Range, field_path: &str) -> Diagnostic {
-    make(range, DiagnosticSeverity::ERROR, UNKNOWN_FIELD,
-        format!("unknown field `{field_path}` — not present in schema"))
+    make(
+        range,
+        DiagnosticSeverity::ERROR,
+        UNKNOWN_FIELD,
+        format!("unknown field `{field_path}` — not present in schema"),
+    )
 }
 
 /// Diagnostic for a duplicate key.
 pub fn duplicate_key(range: Range, key: &str, first_line: u32) -> Diagnostic {
-    make(range, DiagnosticSeverity::ERROR, DUPLICATE_KEY,
-        format!("duplicate key `{key}` (first defined on line {})", first_line + 1))
+    make(
+        range,
+        DiagnosticSeverity::ERROR,
+        DUPLICATE_KEY,
+        format!("duplicate key `{key}` (first defined on line {})", first_line + 1),
+    )
 }
 
 /// Diagnostic for a path containing `..` or backslash traversal sequences.
 pub fn path_traversal(range: Range, raw: &str) -> Diagnostic {
-    make(range, DiagnosticSeverity::ERROR, PATH_TRAVERSAL,
-        format!("path traversal detected in `{raw}` — `..` or `\\..` sequences are forbidden"))
+    make(
+        range,
+        DiagnosticSeverity::ERROR,
+        PATH_TRAVERSAL,
+        format!("path traversal detected in `{raw}` — `..` or `\\..` sequences are forbidden"),
+    )
 }
 
 /// Diagnostic for an absolute path where only relative paths are allowed.
 pub fn relative_only_absolute(range: Range, raw: &str) -> Diagnostic {
-    make(range, DiagnosticSeverity::ERROR, RELATIVE_ONLY_ABSOLUTE,
-        format!("absolute path `{raw}` is forbidden under RelativeOnly policy"))
+    make(
+        range,
+        DiagnosticSeverity::ERROR,
+        RELATIVE_ONLY_ABSOLUTE,
+        format!("absolute path `{raw}` is forbidden under RelativeOnly policy"),
+    )
 }
 
 /// Advisory info when the document appears to reference OCEL/lifecycle export.
 /// Clarifies that OCEL is process history, not q_config standing.
 pub fn ocel_not_standing(range: Range) -> Diagnostic {
-    make(range, DiagnosticSeverity::INFORMATION, OCEL_NOT_STANDING,
+    make(
+        range,
+        DiagnosticSeverity::INFORMATION,
+        OCEL_NOT_STANDING,
         "OCEL tracks lifecycle history — it does not grant q_config standing. \
-         Standing requires ConfigWitness + failset_cardinality = 0.")
+         Standing requires ConfigWitness + failset_cardinality = 0.",
+    )
 }
 
 /// Advisory info when the document appears to reference q_config or admission.
@@ -114,10 +130,7 @@ pub fn q_config_authority_note(range: Range) -> Diagnostic {
 
 /// Convert a `star_toml::ValidationError` to an LSP `Diagnostic`.
 /// Range falls back to document start if the loc is empty/root.
-pub fn from_validation_error(
-    err: &star_toml::ValidationError,
-    text: &str,
-) -> Diagnostic {
+pub fn from_validation_error(err: &star_toml::ValidationError, text: &str) -> Diagnostic {
     let severity = match err.severity {
         star_toml::Severity::Fatal | star_toml::Severity::Error => DiagnosticSeverity::ERROR,
         star_toml::Severity::Warning => DiagnosticSeverity::WARNING,
@@ -160,10 +173,8 @@ pub fn find_key_range_in_text(text: &str, dotted_path: &str) -> Option<Range> {
     for needle in &needles {
         if let Some(offset) = text.find(needle.as_str()) {
             let start = offset_to_position(offset, &line_starts);
-            let end = Position {
-                line: start.line,
-                character: start.character + last_key.len() as u32,
-            };
+            let end =
+                Position { line: start.line, character: start.character + last_key.len() as u32 };
             return Some(Range { start, end });
         }
     }

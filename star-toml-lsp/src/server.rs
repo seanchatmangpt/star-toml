@@ -1,7 +1,6 @@
-use lsp_max::lsp_types_max::*;
-use lsp_max::{jsonrpc::Result, Client, LanguageServer};
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
+
+use lsp_max::{jsonrpc::Result, lsp_types_max::*, Client, LanguageServer};
 
 use crate::state::ServerState;
 
@@ -13,10 +12,7 @@ pub struct StarTomlLanguageServer {
 impl StarTomlLanguageServer {
     pub fn new(client: Client) -> Self {
         let workspace_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        Self {
-            state: Arc::new(ServerState::new(workspace_root)),
-            client,
-        }
+        Self { state: Arc::new(ServerState::new(workspace_root)), client }
     }
 
     async fn publish(&self, uri: Url, diags: Vec<Diagnostic>) {
@@ -107,10 +103,7 @@ impl LanguageServer for StarTomlLanguageServer {
         self.client.publish_diagnostics(uri, vec![], None).await;
     }
 
-    async fn completion(
-        &self,
-        params: CompletionParams,
-    ) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = &params.text_document_position.text_document.uri;
         let pos = params.text_document_position.position;
         let items = self
@@ -118,21 +111,14 @@ impl LanguageServer for StarTomlLanguageServer {
             .with_analyzer(uri, |a| a.completion_at(pos.line, pos.character))
             .await
             .unwrap_or_default();
-        Ok(if items.is_empty() {
-            None
-        } else {
-            Some(CompletionResponse::Array(items))
-        })
+        Ok(if items.is_empty() { None } else { Some(CompletionResponse::Array(items)) })
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = &params.text_document_position_params.text_document.uri;
         let pos = params.text_document_position_params.position;
-        let result = self
-            .state
-            .with_analyzer(uri, |a| a.hover_at(pos.line, pos.character))
-            .await
-            .flatten();
+        let result =
+            self.state.with_analyzer(uri, |a| a.hover_at(pos.line, pos.character)).await.flatten();
         Ok(result)
     }
 
@@ -141,19 +127,15 @@ impl LanguageServer for StarTomlLanguageServer {
         params: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = &params.text_document.uri;
-        let symbols = self
-            .state
-            .with_analyzer(uri, |a| a.document_symbols())
-            .await
-            .unwrap_or_default();
+        let symbols =
+            self.state.with_analyzer(uri, |a| a.document_symbols()).await.unwrap_or_default();
         Ok(Some(DocumentSymbolResponse::Nested(symbols)))
     }
 
-    async fn code_action(
-        &self,
-        params: CodeActionParams,
-    ) -> Result<Option<CodeActionResponse>> {
-        use crate::diagnostics::{DUPLICATE_KEY, INVALID_TOML, PATH_TRAVERSAL, RELATIVE_ONLY_ABSOLUTE};
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        use crate::diagnostics::{
+            DUPLICATE_KEY, INVALID_TOML, PATH_TRAVERSAL, RELATIVE_ONLY_ABSOLUTE,
+        };
 
         let actions: Vec<CodeActionOrCommand> = params
             .context

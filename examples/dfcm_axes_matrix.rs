@@ -34,7 +34,12 @@ impl Validate for MatrixConfig {
         v.check_non_empty("name", &self.name);
         v.check_range("port", self.port, 1024..=65535);
         // Assert that hosts array is not empty
-        v.check_predicate("hosts", !self.hosts.is_empty(), "hosts_not_empty", "at least one host must be specified");
+        v.check_predicate(
+            "hosts",
+            !self.hosts.is_empty(),
+            "hosts_not_empty",
+            "at least one host must be specified",
+        );
     }
 }
 impl ConfigLifecycle for MatrixConfig {}
@@ -44,20 +49,26 @@ fn main() {
 
     // Axis 1: Source & Layering (defaults + inline base + optional file)
     let loader = TrustedLoader::new()
-        .layer_str(r#"
+        .layer_str(
+            r#"
             name = "defaults"
             port = 8080
             debug = false
             hosts = ["localhost"]
-        "#, "defaults")
-        .layer_str(r#"
+        "#,
+            "defaults",
+        )
+        .layer_str(
+            r#"
             name = "matrix-service"
             port = 9090
-        "#, "base");
+        "#,
+            "base",
+        );
 
     // Load admitted config
     let admitted = loader.load_admitted::<MatrixConfig>().unwrap();
-    
+
     println!("Matrix axes loaded successfully:");
     println!("  - Resolved Name: {}", admitted.value().name);
     println!("  - Resolved Port: {}", admitted.value().port);

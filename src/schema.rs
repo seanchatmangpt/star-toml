@@ -180,7 +180,7 @@ use crate::validation::{ErrorKind, Loc, LocSegment, Severity, ValidationError, V
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
-enum Constraint {
+pub(crate) enum Constraint {
     NonEmpty,
     RangeI64 { lo: i64, hi: i64 },
     RangeF64 { lo: f64, hi: f64 },
@@ -336,6 +336,33 @@ impl<'a> FieldBuilder<'a> {
         self.add(Constraint::Predicate { code, msg: msg.into(), test })
     }
 
+    pub fn description(self, desc: &str) -> Self {
+        self.schema.field_descriptions.insert(self.name.clone(), desc.to_string());
+        self
+    }
+
+    pub fn default(self, val: &str) -> Self {
+        self.schema.field_defaults.insert(self.name.clone(), val.to_string());
+        self
+    }
+
+    pub fn allowed_values(self, vals: &[&str]) -> Self {
+        let v = vals.iter().map(|s| (*s).to_string()).collect();
+        self.schema.field_allowed.insert(self.name.clone(), v);
+        self
+    }
+
+    pub fn forbidden_values(self, vals: &[&str]) -> Self {
+        let v = vals.iter().map(|s| (*s).to_string()).collect();
+        self.schema.field_forbidden.insert(self.name.clone(), v);
+        self
+    }
+
+    pub fn stability(self, level: &str) -> Self {
+        self.schema.field_stabilities.insert(self.name.clone(), level.to_string());
+        self
+    }
+
     fn add(self, c: Constraint) -> Self {
         let idx = self.schema.fields.iter().position(|(n, _)| n == &self.name);
         match idx {
@@ -347,7 +374,21 @@ impl<'a> FieldBuilder<'a> {
 
     /// Finish field configuration and return to the parent [`Schema`].
     pub fn done(self) -> Schema {
-        Schema { fields: self.schema.fields.clone(), sections: self.schema.sections.clone() }
+        Schema {
+            fields: self.schema.fields.clone(),
+            sections: self.schema.sections.clone(),
+            domain_id: self.schema.domain_id.clone(),
+            domain_name: self.schema.domain_name.clone(),
+            domain_description: self.schema.domain_description.clone(),
+            field_descriptions: self.schema.field_descriptions.clone(),
+            field_defaults: self.schema.field_defaults.clone(),
+            field_allowed: self.schema.field_allowed.clone(),
+            field_forbidden: self.schema.field_forbidden.clone(),
+            field_stabilities: self.schema.field_stabilities.clone(),
+            authority_boundary: self.schema.authority_boundary.clone(),
+            override_policy: self.schema.override_policy.clone(),
+            stability: self.schema.stability.clone(),
+        }
     }
 }
 
@@ -378,8 +419,19 @@ impl<'a> FieldBuilder<'a> {
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct Schema {
-    fields: Vec<(String, Vec<Constraint>)>,
-    sections: Vec<(String, Schema)>,
+    pub(crate) fields: Vec<(String, Vec<Constraint>)>,
+    pub(crate) sections: Vec<(String, Schema)>,
+    pub(crate) domain_id: Option<String>,
+    pub(crate) domain_name: Option<String>,
+    pub(crate) domain_description: Option<String>,
+    pub(crate) field_descriptions: std::collections::HashMap<String, String>,
+    pub(crate) field_defaults: std::collections::HashMap<String, String>,
+    pub(crate) field_allowed: std::collections::HashMap<String, Vec<String>>,
+    pub(crate) field_forbidden: std::collections::HashMap<String, Vec<String>>,
+    pub(crate) field_stabilities: std::collections::HashMap<String, String>,
+    pub(crate) authority_boundary: Option<crate::docs::AuthorityBoundary>,
+    pub(crate) override_policy: Option<crate::docs::OverridePolicy>,
+    pub(crate) stability: Option<String>,
 }
 
 impl Schema {
@@ -413,6 +465,28 @@ impl Schema {
     /// ```
     pub fn section(mut self, name: &str, sub: Schema) -> Self {
         self.sections.push((name.to_string(), sub));
+        self
+    }
+
+    pub fn domain_metadata(mut self, id: &str, name: &str, description: &str) -> Self {
+        self.domain_id = Some(id.to_string());
+        self.domain_name = Some(name.to_string());
+        self.domain_description = Some(description.to_string());
+        self
+    }
+
+    pub fn authority_boundary(mut self, boundary: crate::docs::AuthorityBoundary) -> Self {
+        self.authority_boundary = Some(boundary);
+        self
+    }
+
+    pub fn override_policy(mut self, policy: crate::docs::OverridePolicy) -> Self {
+        self.override_policy = Some(policy);
+        self
+    }
+
+    pub fn stability(mut self, level: &str) -> Self {
+        self.stability = Some(level.to_string());
         self
     }
 
@@ -529,6 +603,199 @@ impl Schema {
             let mut sub_prefix = prefix.to_vec();
             sub_prefix.push(LocSegment::Key(sub_section_name.clone()));
             sub_schema.report_section_missing(sub_section_name, &sub_prefix, errors, checks_run);
+        }
+    }
+
+    pub fn get_domain(&self) -> crate::docs::ConfigDomain {
+        let domain_id = self.domain_id.clone().unwrap_or_else(|| "anonymous_domain".to_string());
+        let domain_name =
+            self.domain_name.clone().unwrap_or_else(|| "Anonymous Domain".to_string());
+        let domain_description = self
+            .domain_description
+            .clone()
+            .unwrap_or_else(|| "No description provided.".to_string());
+
+        let mut fields = Vec::new();
+        let mut validators = Vec::new();
+        let mut counterexamples = Vec::new();
+
+        for (field_name, constraints) in &self.fields {
+            let mut field_type = "String".to_string();
+            let mut required = false;
+            let mut val_refs = Vec::new();
+            let mut ce_refs = Vec::new();
+
+            for c in constraints {
+                let val_name = match c {
+                    Constraint::NonEmpty => "non_empty".to_string(),
+                    Constraint::Required => {
+                        required = true;
+                        "required".to_string()
+                    }
+                    Constraint::RangeI64 { .. } => {
+                        field_type = "integer".to_string();
+                        "range_i64".to_string()
+                    }
+                    Constraint::RangeF64 { .. } => {
+                        field_type = "float".to_string();
+                        "range_f64".to_string()
+                    }
+                    Constraint::OneOf { .. } => "one_of".to_string(),
+                    Constraint::Predicate { code, .. } => code.to_string(),
+                };
+
+                let val_id = format!("{}_{}_{}", domain_id, field_name, val_name);
+                val_refs.push(val_id.clone());
+
+                let ce_code = match c {
+                    Constraint::NonEmpty => "empty".to_string(),
+                    Constraint::Required => "missing".to_string(),
+                    Constraint::RangeI64 { .. } | Constraint::RangeF64 { .. } => {
+                        "out_of_range".to_string()
+                    }
+                    Constraint::OneOf { .. } => "not_one_of".to_string(),
+                    Constraint::Predicate { code, .. } => code.to_string(),
+                };
+                ce_refs.push(ce_code.clone());
+
+                let val_desc = match c {
+                    Constraint::NonEmpty => "must not be empty".to_string(),
+                    Constraint::Required => "field is required".to_string(),
+                    Constraint::RangeI64 { lo, hi } => format!("must be in range {}..={}", lo, hi),
+                    Constraint::RangeF64 { lo, hi } => format!("must be in range {}..={}", lo, hi),
+                    Constraint::OneOf { allowed } => {
+                        format!("must be one of: {}", allowed.join(", "))
+                    }
+                    Constraint::Predicate { msg, .. } => msg.clone(),
+                };
+
+                let ce_desc = match c {
+                    Constraint::NonEmpty => "value is empty".to_string(),
+                    Constraint::Required => "required field is missing".to_string(),
+                    Constraint::RangeI64 { .. } | Constraint::RangeF64 { .. } => {
+                        "value is out of range".to_string()
+                    }
+                    Constraint::OneOf { allowed } => {
+                        format!("must be one of: {}", allowed.join(", "))
+                    }
+                    Constraint::Predicate { msg, .. } => msg.clone(),
+                };
+
+                let ce_hint = match c {
+                    Constraint::NonEmpty => "provide a non-empty string".to_string(),
+                    Constraint::Required => "provide the required field".to_string(),
+                    Constraint::RangeI64 { lo, hi } => {
+                        format!("provide a value between {} and {}", lo, hi)
+                    }
+                    Constraint::RangeF64 { lo, hi } => {
+                        format!("provide a value between {} and {}", lo, hi)
+                    }
+                    Constraint::OneOf { allowed } => {
+                        format!("choose one of: {}", allowed.join(", "))
+                    }
+                    Constraint::Predicate { .. } => "correct the value".to_string(),
+                };
+
+                validators.push(crate::docs::ConfigValidator {
+                    id: val_id,
+                    name: val_name,
+                    predicate: "is_valid".to_string(),
+                    description: val_desc,
+                    applies_to: vec![field_name.clone()],
+                    failure_counterexamples: vec![ce_code.clone()],
+                    severity: "Error".to_string(),
+                });
+
+                if !counterexamples
+                    .iter()
+                    .any(|existing: &crate::docs::Counterexample| existing.code == ce_code)
+                {
+                    counterexamples.push(crate::docs::Counterexample {
+                        code: ce_code,
+                        name: field_name.clone(),
+                        description: ce_desc,
+                        severity: "Error".to_string(),
+                        detection_rule: "validation_fails".to_string(),
+                        repair_hint: ce_hint,
+                    });
+                }
+            }
+
+            let field_desc = self.field_descriptions.get(field_name).cloned().unwrap_or_default();
+            let default_val = self.field_defaults.get(field_name).cloned();
+            let allowed_vals = self.field_allowed.get(field_name).cloned().unwrap_or_default();
+            let forbidden_vals = self.field_forbidden.get(field_name).cloned().unwrap_or_default();
+            let field_stability = self
+                .field_stabilities
+                .get(field_name)
+                .cloned()
+                .unwrap_or_else(|| "stable".to_string());
+
+            fields.push(crate::docs::ConfigField {
+                id: format!("{}.{}", domain_id, field_name),
+                domain_id: domain_id.clone(),
+                name: field_name.clone(),
+                r#type: field_type,
+                required,
+                default: default_val,
+                allowed_values: allowed_vals,
+                forbidden_values: forbidden_vals,
+                description: field_desc,
+                validator_refs: val_refs,
+                counterexample_refs: ce_refs,
+                override_policy_ref: None,
+                source_binding: "schema".to_string(),
+                stability: field_stability,
+            });
+        }
+
+        // Recursively handle nested sections
+        for (sec_name, sec_schema) in &self.sections {
+            let mut sec_domain = sec_schema.get_domain();
+            sec_domain.id = format!("{}.{}", domain_id, sec_name);
+            fields.extend(sec_domain.fields.drain(..).map(|mut f| {
+                f.domain_id = domain_id.clone();
+                f
+            }));
+            validators.extend(sec_domain.validators.drain(..));
+            counterexamples.extend(sec_domain.counterexamples.drain(..));
+        }
+
+        let authority_boundary =
+            self.authority_boundary.clone().unwrap_or_else(|| crate::docs::AuthorityBoundary {
+                id: format!("{}_boundary", domain_id),
+                domain: domain_id.clone(),
+                may_control: vec![],
+                must_not_claim: vec![],
+                defer_to: None,
+                escalation_rule: None,
+            });
+
+        let override_policy =
+            self.override_policy.clone().unwrap_or_else(|| crate::docs::OverridePolicy {
+                id: format!("{}_override", domain_id),
+                allowed: true,
+                required_reason: false,
+                required_scope: vec![],
+                required_expiration: None,
+                required_tracking: None,
+                required_replacement_plan: false,
+                refusal_conditions: vec![],
+            });
+
+        let stability_str = self.stability.clone().unwrap_or_else(|| "stable".to_string());
+
+        crate::docs::ConfigDomain {
+            id: domain_id,
+            name: domain_name,
+            description: domain_description,
+            authority_boundary,
+            fields,
+            validators,
+            counterexamples,
+            override_policy,
+            receipt_binding: None,
+            stability: stability_str,
         }
     }
 }

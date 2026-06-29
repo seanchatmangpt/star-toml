@@ -65,12 +65,15 @@ fn main() {
         Ok(admitted) => {
             println!("Admission Successful!");
             println!("Port: {} (should be overridden to 9999)", admitted.value().port);
-            
+
             println!("\nEnv Override Report:");
             for entry in &admitted.env_report().entries {
                 println!(
                     "  - Key: '{}', Path: '{}', Accepted: {}, Coerced Digest: {:?}",
-                    entry.raw_env_key, entry.mapped_path, entry.accepted, entry.coerced_value_digest
+                    entry.raw_env_key,
+                    entry.mapped_path,
+                    entry.accepted,
+                    entry.coerced_value_digest
                 );
             }
         }

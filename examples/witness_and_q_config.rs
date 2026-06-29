@@ -53,15 +53,13 @@ fn main() {
     println!("--- Witness and q_config Example ---");
 
     // 1. Initial configuration load
-    let loader1 = TrustedLoader::new()
-        .layer_file("examples/config_patterns/service.toml");
+    let loader1 = TrustedLoader::new().layer_file("examples/config_patterns/service.toml");
     let admitted1 = loader1.load_admitted::<AppConfig>().unwrap();
     let hash1 = admitted1.witness().hash().to_owned();
     println!("Initial Witness Hash: {}", hash1);
 
     // 2. Load identical configuration in another run
-    let loader2 = TrustedLoader::new()
-        .layer_file("examples/config_patterns/service.toml");
+    let loader2 = TrustedLoader::new().layer_file("examples/config_patterns/service.toml");
     let admitted2 = loader2.load_admitted::<AppConfig>().unwrap();
     let hash2 = admitted2.witness().hash();
     println!("Second Run Witness Hash:  {}", hash2);

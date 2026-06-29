@@ -1,11 +1,13 @@
-use crate::analyzer::StarTomlDocumentAnalyzer;
-use crate::gate::{write_gate, GateState};
-use crate::telemetry::OcelEmitter;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
 use lsp_max::lsp_types_max::{Diagnostic, Url};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tokio::sync::Mutex;
+
+use crate::{
+    analyzer::StarTomlDocumentAnalyzer,
+    gate::{write_gate, GateState},
+    telemetry::OcelEmitter,
+};
 
 pub struct ServerState {
     pub documents: Arc<Mutex<HashMap<Url, String>>>,

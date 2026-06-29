@@ -2,8 +2,9 @@
 //!
 //! Run with: `cargo run --example path_policy_sandbox`
 
-use star_toml::path::{resolve_and_validate, PathPolicy};
 use std::path::Path;
+
+use star_toml::path::{resolve_and_validate, PathPolicy};
 
 fn main() {
     println!("--- Path Policy Sandbox Example ---");
@@ -14,9 +15,7 @@ fn main() {
     let source_path = Path::new("examples/config_patterns/paths.toml");
 
     // 1. Valid path under Sandbox policy
-    let sandbox = PathPolicy::Sandbox {
-        root: std::path::PathBuf::from("examples"),
-    };
+    let sandbox = PathPolicy::Sandbox { root: std::path::PathBuf::from("examples") };
     match resolve_and_validate("config_patterns/service.toml", source_path, &sandbox) {
         Ok((resolved, witness)) => {
             println!("Valid Path Resolved: {:?}", resolved);

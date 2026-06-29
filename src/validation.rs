@@ -101,7 +101,12 @@
 //! assert!(!errs.errors()[0].repair_hint().is_empty());
 //! ```
 
-use std::{collections::BTreeMap, fmt, ops::RangeInclusive, path::{Path, PathBuf}};
+use std::{
+    collections::BTreeMap,
+    fmt,
+    ops::RangeInclusive,
+    path::{Path, PathBuf},
+};
 
 // ---------------------------------------------------------------------------
 // Location — a path into the config tree
@@ -882,7 +887,11 @@ impl Validator {
                     raw_path: value.to_owned(),
                     source_path: source_path.to_path_buf(),
                     resolved_path: None,
-                    policy: format!("{policy:?}").split_whitespace().next().unwrap_or("Unknown").to_owned(),
+                    policy: format!("{policy:?}")
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("Unknown")
+                        .to_owned(),
                     accepted: false,
                     rejection_code: Some(clean_code.to_owned()),
                     sandbox_root: if let crate::path::PathPolicy::Sandbox { root } = policy {

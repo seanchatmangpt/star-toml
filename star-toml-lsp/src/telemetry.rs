@@ -4,10 +4,13 @@
 //! This is LSP editor-time telemetry — it does NOT compute q_config.
 //! OCEL = process history. Standing = ConfigWitness + failset_cardinality = 0.
 
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
+
 use serde_json::{json, Value};
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventKind {
@@ -40,10 +43,7 @@ impl OcelEmitter {
     pub fn new(workspace_root: &Path) -> Self {
         let dir = workspace_root.join(".star-toml");
         let _ = std::fs::create_dir_all(&dir);
-        Self {
-            path: dir.join("ocel.jsonl"),
-            inner: Arc::new(Mutex::new(())),
-        }
+        Self { path: dir.join("ocel.jsonl"), inner: Arc::new(Mutex::new(())) }
     }
 
     /// Emit one telemetry event. Non-fatal: silently drops on I/O error.
@@ -62,11 +62,7 @@ impl OcelEmitter {
         };
         // Serialise writes with the mutex.
         let _guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.path)
-        {
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&self.path) {
             let _ = writeln!(f, "{line}");
         }
     }

@@ -1,6 +1,6 @@
 [package]
 name = "star-toml-lsp"
-version = "26.6.28"
+version = "26.6.29"
 edition = "2021"
 rust-version = "1.82"
 authors = ["Sean Chatman <sean@chatmangpt.com>"]
@@ -9,7 +9,7 @@ description = "Language server for *.toml config files validated by star-toml"
 repository = "https://github.com/seanchatmangpt/star-toml"
 
 [dependencies]
-star-toml = { path = "..", version = "26.6.28" }
+star-toml = { path = "..", version = "26.6.29" }
 lsp-max = "26.6.24"
 lsp-max-protocol = "26.6.9"
 tokio = { version = "1", features = ["full"] }

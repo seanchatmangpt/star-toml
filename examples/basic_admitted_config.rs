@@ -54,8 +54,7 @@ fn main() {
 
     // DfCM Invariant: Raw parsing is never treated as trusted config.
     // Instead, we construct a TrustedLoader to enforce all boundaries.
-    let loader = TrustedLoader::new()
-        .layer_file("examples/config_patterns/service.toml");
+    let loader = TrustedLoader::new().layer_file("examples/config_patterns/service.toml");
 
     match loader.load_admitted::<AppConfig>() {
         Ok(admitted) => {

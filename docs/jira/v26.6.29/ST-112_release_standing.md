@@ -207,3 +207,77 @@ Level 9: Release verifier failset = 0         → release_verifier executes with
 ```
 
 Only Level 9 candidates are admitted for Crates.io publication.
+
+---
+
+## 6. Individual JIRA Tickets (ST-112 Sub-tasks)
+
+### ST-112-001 — Establish Global `release_verifier` CLI Harness
+* **Type**: Task
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Develop a command-line utility binary named `release_verifier` that executes sequential audit checks over the workspace.
+* **Verification**: Verify that running `cargo run --bin release_verifier` executes check suite successfully.
+
+### ST-112-002 — Compile and Test Verification Gates (Level 0 - Level 2)
+* **Type**: Story
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Verifier must run compiler checks and execute all unit and integration test runner cases.
+* **Verification**: Covered under verifier check 1 (`parse_valid_treated_as_trusted`) and workspace test outputs.
+
+### ST-112-003 — Path Sandboxing Threat Verification (Level 3)
+* **Type**: Story
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Checks must assert lexical sandboxing and relative resolution limits, rejecting directory traversal attempts or null byte injections.
+* **Verification**: Verifier checks 12 (`path_traversal_accepted`) and 13 (`null_byte_path_accepted`) must pass.
+
+### ST-112-004 — Witness Digest Stability Verification
+* **Type**: Story
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Confirm `ConfigWitness` deterministically hashes all sources, winning layer values, env mappings, and validation results.
+* **Verification**: Verifier check 14 (`witness_claim_without_hash_input`) and check 21 (`witness_nondeterministic`) must pass.
+
+### ST-112-005 — Documentation Freshness Gate Verification (Level 4)
+* **Type**: Story
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Check that exported Markdown and JSON config references are 100% synchronized with compile-time code structures.
+* **Verification**: Verifier check 20 (`docs_integrity_and_freshness`) must pass.
+
+### ST-112-006 — API Lifecycle Mappings & Misuse Tests Verification (Level 5)
+* **Type**: Story
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Check that all public loader functions are lifecycle-mapped and have associated validation examples.
+* **Verification**: Verifier check 2 (`public_api_without_example`) and check 3 (`public_api_without_lifecycle_position`) must pass.
+
+### ST-112-007 — Clean Git Status Verification (Level 8)
+* **Type**: Task
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Release builds must be blocked if the repository contains dirty unstaged files or untracked changes.
+* **Verification**: Verifier check 15 (`cargo_package_without_clean_git`) must fail when local workspace has modified files.
+
+### ST-112-008 — Workspace Version and Dependency Alignment (Level 7)
+* **Type**: Task
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Ensure there are no cyclic crate imports and workspace dependency version numbers are aligned.
+* **Verification**: Verifier checks 16 (`dependency_order_not_publishable`) and 17 (`version_alignment_drift`) must pass.
+
+### ST-112-009 — LSP Architectural Separation Verification (Level 6)
+* **Type**: Story
+* **Priority**: P1
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Language server imports must remain decoupled from config loader internal engines to maintain sandbox safety boundaries.
+* **Verification**: Verifier check 8 (`lsp_authority_boundary_violation`) must pass.
+
+### ST-112-010 — Final Standing Report Generation
+* **Type**: Story
+* **Priority**: P0
+* **Status**: **Implemented**
+* **Acceptance Criteria**: Output verifier results in a tabular format, terminating with a singular verdict of `ADMITTED` or `REFUSED`.
+* **Verification**: Output report printed on standard stream.

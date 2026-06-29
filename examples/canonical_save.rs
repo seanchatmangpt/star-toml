@@ -28,8 +28,7 @@ fn main() {
 
     // DfCM Invariant: save_canonical is only callable after validation (e.g. Frozen state).
     // Comment preservation is NOT claimed.
-    let loader = TrustedLoader::new()
-        .layer_file("examples/config_patterns/service.toml");
+    let loader = TrustedLoader::new().layer_file("examples/config_patterns/service.toml");
 
     match loader.load_frozen::<AppConfig>() {
         Ok(result) => {

@@ -768,6 +768,10 @@ impl<T> std::ops::Deref for TrustedConfig<T> {
 /// Builder for composing multiple TOML config sources and producing a `TrustedConfig`.
 pub struct TrustedLoader {
     loader: Loader,
+    /// When `false`, `load_admitted()` will refuse with SCH-JSON-008 because the
+    /// caller is attempting to validate config against an unadmitted JSON Schema.
+    /// Default is `true` (no JSON Schema bridge in use, or schema already admitted).
+    json_schema_admitted: bool,
 }
 
 impl Default for TrustedLoader {
@@ -780,7 +784,16 @@ impl TrustedLoader {
     /// Create a new empty `TrustedLoader` with no sources.
     #[must_use]
     pub fn new() -> Self {
-        Self { loader: Loader::new() }
+        Self { loader: Loader::new(), json_schema_admitted: true }
+    }
+
+    /// Declare whether the JSON Schema used to shape this config has been admitted
+    /// by the star-toml-json-schema bridge.  Pass `false` to explicitly mark a
+    /// schema as unadmitted — `load_admitted()` will then refuse with SCH-JSON-008.
+    #[must_use]
+    pub fn require_json_schema_admission(mut self, admitted: bool) -> Self {
+        self.json_schema_admitted = admitted;
+        self
     }
 
     /// Add a literal TOML string as the next layer.
@@ -1079,8 +1092,7 @@ impl Loader {
     /// [`load_raw`]: Loader::load_raw
     pub fn load_bounded(self) -> Result<Config<BoundedSources>> {
         let mut merged = Value::Table(toml::map::Map::new());
-        let mut last_file_path =
-            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let mut last_file_path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let mut source_report = SourceReport::default();
         let mut layer_report = LayerReport::default();
         let mut global_winner_map = WinnerMap::new();
@@ -1114,13 +1126,7 @@ impl Loader {
                     let layer_order_digest = blake3_hex(layer_order_acc.as_bytes());
 
                     let mut layer_winner_map = WinnerMap::new();
-                    deep_merge_traced(
-                        &mut merged,
-                        val,
-                        &layer_id_str,
-                        "",
-                        &mut layer_winner_map,
-                    );
+                    deep_merge_traced(&mut merged, val, &layer_id_str, "", &mut layer_winner_map);
                     global_winner_map.extend(layer_winner_map.clone());
 
                     layer_report.entries.push(LayerEntry {
@@ -1152,8 +1158,8 @@ impl Loader {
                         return Err(Error::FileNotFound(path));
                     }
 
-                    let content = std::fs::read_to_string(&path)
-                        .map_err(|e| Error::io(&path, e))?;
+                    let content =
+                        std::fs::read_to_string(&path).map_err(|e| Error::io(&path, e))?;
                     let digest = blake3_hex(content.as_bytes());
                     let size = content.len() as u64;
                     let source_root = path.parent().map(PathBuf::from);
@@ -1180,17 +1186,10 @@ impl Loader {
                     last_file_path = path;
                     layer_order_acc.push_str(&digest);
                     let layer_order_digest = blake3_hex(layer_order_acc.as_bytes());
-                    let layer_name =
-                        source_report.entries.last().unwrap().label.clone();
+                    let layer_name = source_report.entries.last().unwrap().label.clone();
 
                     let mut layer_winner_map = WinnerMap::new();
-                    deep_merge_traced(
-                        &mut merged,
-                        val,
-                        &layer_id_str,
-                        "",
-                        &mut layer_winner_map,
-                    );
+                    deep_merge_traced(&mut merged, val, &layer_id_str, "", &mut layer_winner_map);
                     global_winner_map.extend(layer_winner_map.clone());
 
                     layer_report.entries.push(LayerEntry {
@@ -1222,8 +1221,8 @@ impl Loader {
                         continue;
                     }
 
-                    let content = std::fs::read_to_string(&path)
-                        .map_err(|e| Error::io(&path, e))?;
+                    let content =
+                        std::fs::read_to_string(&path).map_err(|e| Error::io(&path, e))?;
                     let digest = blake3_hex(content.as_bytes());
                     let size = content.len() as u64;
                     let source_root = path.parent().map(PathBuf::from);
@@ -1250,17 +1249,10 @@ impl Loader {
                     last_file_path = path;
                     layer_order_acc.push_str(&digest);
                     let layer_order_digest = blake3_hex(layer_order_acc.as_bytes());
-                    let layer_name =
-                        source_report.entries.last().unwrap().label.clone();
+                    let layer_name = source_report.entries.last().unwrap().label.clone();
 
                     let mut layer_winner_map = WinnerMap::new();
-                    deep_merge_traced(
-                        &mut merged,
-                        val,
-                        &layer_id_str,
-                        "",
-                        &mut layer_winner_map,
-                    );
+                    deep_merge_traced(&mut merged, val, &layer_id_str, "", &mut layer_winner_map);
                     global_winner_map.extend(layer_winner_map.clone());
 
                     layer_report.entries.push(LayerEntry {
@@ -1292,15 +1284,13 @@ impl Loader {
                             });
                         }
                         Some(path) => {
-                            let content = std::fs::read_to_string(&path)
-                                .map_err(|e| Error::io(&path, e))?;
+                            let content =
+                                std::fs::read_to_string(&path).map_err(|e| Error::io(&path, e))?;
                             let digest = blake3_hex(content.as_bytes());
                             let size = content.len() as u64;
                             let source_root = path.parent().map(PathBuf::from);
-                            let source_parent = source_root
-                                .as_ref()
-                                .and_then(|p| p.parent())
-                                .map(PathBuf::from);
+                            let source_parent =
+                                source_root.as_ref().and_then(|p| p.parent()).map(PathBuf::from);
 
                             source_report.entries.push(SourceEntry {
                                 source_id,
@@ -1316,16 +1306,13 @@ impl Loader {
                             });
 
                             let expanded = expand_env_vars(&content);
-                            let val: Value =
-                                parse_str(&expanded, &path.display().to_string())?;
+                            let val: Value = parse_str(&expanded, &path.display().to_string())?;
                             let layer_id_str = format!("layer-{source_id}");
 
                             last_file_path = path;
                             layer_order_acc.push_str(&digest);
-                            let layer_order_digest =
-                                blake3_hex(layer_order_acc.as_bytes());
-                            let layer_name =
-                                source_report.entries.last().unwrap().label.clone();
+                            let layer_order_digest = blake3_hex(layer_order_acc.as_bytes());
+                            let layer_name = source_report.entries.last().unwrap().label.clone();
 
                             let mut layer_winner_map = WinnerMap::new();
                             deep_merge_traced(
@@ -1353,12 +1340,7 @@ impl Loader {
         }
 
         Ok(Config {
-            state: BoundedSources {
-                value: merged,
-                source_report,
-                layer_report,
-                global_winner_map,
-            },
+            state: BoundedSources { value: merged, source_report, layer_report, global_winner_map },
             path: last_file_path,
         })
     }
@@ -1456,11 +1438,8 @@ impl ConfigWitness {
         // 1. Source digests sorted by source_id
         let mut source_entries: Vec<_> = source_report.entries.iter().collect();
         source_entries.sort_by_key(|e| e.source_id);
-        let source_part: String = source_entries
-            .iter()
-            .filter_map(|e| e.digest.as_deref())
-            .collect::<Vec<_>>()
-            .join(",");
+        let source_part: String =
+            source_entries.iter().filter_map(|e| e.digest.as_deref()).collect::<Vec<_>>().join(",");
         parts.push(source_part);
 
         // 2. Last layer_order_digest
@@ -1516,12 +1495,7 @@ pub fn detect_unknown_fields<T: Serialize>(original: &Value, typed: &T) -> Vec<S
     unknown
 }
 
-fn collect_unknown_keys(
-    original: &Value,
-    typed: &Value,
-    prefix: &str,
-    unknown: &mut Vec<String>,
-) {
+fn collect_unknown_keys(original: &Value, typed: &Value, prefix: &str, unknown: &mut Vec<String>) {
     match (original, typed) {
         (Value::Table(orig_t), Value::Table(typed_t)) => {
             for (k, v) in orig_t {
@@ -1626,6 +1600,17 @@ impl TrustedLoader {
     pub fn load_admitted<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
         mut self,
     ) -> Result<AdmittedConfig<T>> {
+        // SCH-JSON-008: refuse if caller declared schema was not admitted
+        if !self.json_schema_admitted {
+            return Err(Error::validation(
+                "TrustedLoader",
+                "SCH-JSON-008: config validation refused — JSON Schema was not admitted by the \
+                 star-toml-json-schema bridge before use. Call \
+                 require_json_schema_admission(true) only after import_json_schema succeeds \
+                 with no fatal diagnostics.",
+            ));
+        }
+
         // We need the original merged value to compare against.
         // Re-run load_bounded + apply_env to get both original value and typed result.
         let env_prefix = self.loader.env_prefix.take();
@@ -1662,24 +1647,15 @@ impl TrustedLoader {
                 })
                 .collect();
             let checks_run = errors.len();
-            let errs = crate::validation::ValidationErrors {
-                errors,
-                title: None,
-                checks_run,
-            };
+            let errs = crate::validation::ValidationErrors { errors, title: None, checks_run };
             return Err(Error::Invalid(errs));
         }
 
         let validated = deser.validate()?;
         let config = validated.freeze();
 
-        let frozen_result = FrozenLoadResult {
-            config,
-            source_report,
-            layer_report,
-            env_report,
-            global_winner_map,
-        };
+        let frozen_result =
+            FrozenLoadResult { config, source_report, layer_report, env_report, global_winner_map };
         build_admitted(frozen_result)
     }
 
@@ -1692,7 +1668,9 @@ impl TrustedLoader {
     ///
     /// Returns an error if any required file is missing, parsing fails, or
     /// validation produces `Error`-or-above findings.
-    pub fn load_admitted_exploratory<T: DeserializeOwned + Validate + ConfigLifecycle + Serialize>(
+    pub fn load_admitted_exploratory<
+        T: DeserializeOwned + Validate + ConfigLifecycle + Serialize,
+    >(
         self,
     ) -> Result<AdmittedConfig<T>> {
         let result = self.load_frozen::<T>()?;
@@ -1734,7 +1712,14 @@ fn build_admitted<T: Serialize>(result: FrozenLoadResult<T>) -> Result<AdmittedC
     // Extract value from frozen config
     let value = config.state.0;
 
-    Ok(AdmittedConfig { value, witness, source_report, layer_report, env_report, global_winner_map })
+    Ok(AdmittedConfig {
+        value,
+        witness,
+        source_report,
+        layer_report,
+        env_report,
+        global_winner_map,
+    })
 }
 
 // ---------------------------------------------------------------------------

@@ -25,7 +25,9 @@ fn validation_error_without_path() {
 fn path_traversal_accepted() {
     println!("[Counterexample 12] path_traversal_accepted");
     println!("  - Attack: Using parent traversals (../) to escape sandbox roots.");
-    println!("  - Defense: clean_path and resolve_and_validate reject parent directory components.");
+    println!(
+        "  - Defense: clean_path and resolve_and_validate reject parent directory components."
+    );
 }
 
 fn witness_missing_source_digest() {
@@ -37,7 +39,9 @@ fn witness_missing_source_digest() {
 fn ocel_treated_as_standing_authority() {
     println!("[Counterexample 23] ocel_treated_as_standing_authority");
     println!("  - Attack: Using process-mining logs (OCEL) to grant configuration standing.");
-    println!("  - Defense: OCEL is history-only; ConfigWitness and q_config reside solely in loader.");
+    println!(
+        "  - Defense: OCEL is history-only; ConfigWitness and q_config reside solely in loader."
+    );
 }
 
 fn main() {

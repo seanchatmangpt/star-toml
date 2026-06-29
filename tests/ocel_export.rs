@@ -1,8 +1,10 @@
 //! Test suite for validating the wasm4pm-compat OCEL export mapping and adapter integration.
 //! wasm4pm-compat is a required dependency; no feature flag is needed.
 
-use star_toml::events::{AdmissionEvent, ConfigEventKind};
-use star_toml::ocel::export_events_to_ocel;
+use star_toml::{
+    events::{AdmissionEvent, ConfigEventKind},
+    ocel::export_events_to_ocel,
+};
 
 #[test]
 fn test_ocel_export_does_not_compute_q() {
@@ -17,7 +19,7 @@ fn test_ocel_export_does_not_compute_q() {
     );
 
     let log = export_events_to_ocel(&[event]);
-    
+
     // Validate that no q_config attribute exists on the objects or events (ensuring no q_config is computed or defined here).
     for obj in log.objects() {
         assert!(obj.attributes().iter().all(|attr| attr.key != "q_config"));
@@ -53,7 +55,7 @@ fn test_lifecycle_events_export_to_ocel() {
     assert_eq!(log.events().len(), 2);
     assert_eq!(log.events()[0].activity(), "SourceDiscovered");
     assert_eq!(log.events()[1].activity(), "LayerMerged");
-    
+
     // Check ConfigRun object is mapped
     let run_obj_found = log.objects().iter().any(|obj| obj.object_type() == "ConfigRun");
     assert!(run_obj_found);
@@ -100,6 +102,10 @@ fn test_ocel_export_has_config_run_object() {
     );
 
     let log = export_events_to_ocel(&[event]);
-    let run_obj = log.objects().iter().find(|obj| obj.object_type() == "ConfigRun").expect("ConfigRun object should exist");
+    let run_obj = log
+        .objects()
+        .iter()
+        .find(|obj| obj.object_type() == "ConfigRun")
+        .expect("ConfigRun object should exist");
     assert_eq!(run_obj.id(), "run_my_test_run");
 }

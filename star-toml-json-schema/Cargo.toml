@@ -1,0 +1,16 @@
+[package]
+name = "star-toml-json-schema"
+version = "26.6.29"
+edition = "2021"
+rust-version = "1.82"
+authors = ["Sean Chatman <sean@chatmangpt.com>"]
+license = "MIT"
+description = "Optional JSON Schema bridge for star-toml"
+
+[dependencies]
+star-toml = { path = "..", version = "26.6.29" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+blake3 = "1"
+jsonschema = "0.18"

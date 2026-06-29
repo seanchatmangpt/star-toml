@@ -1,0 +1,164 @@
+{
+  "version": "26.6.29",
+  "generated_at": "2026-06-28T15:41:36-07:00",
+  "input_digest": "44d4f616d23f897f7718aea799cafe0d5190253db28dfd0d816eb18128c33815",
+  "model_digest": "4c9e73f1727cc0abae02b1a3fa030c9fa89237150bc25ab848b4e718a84fc10e",
+  "domains": [
+    {
+      "id": "system",
+      "name": "Star TOML System Config",
+      "description": "Configuration schema governing star-toml sandbox policies, log paths, and cache sizes.",
+      "authority_boundary": {
+        "id": "system_boundary",
+        "domain": "system",
+        "may_control": [
+          "cache_size",
+          "log_path"
+        ],
+        "must_not_claim": [
+          "root_authority"
+        ],
+        "defer_to": "platform-ops",
+        "escalation_rule": null
+      },
+      "fields": [
+        {
+          "id": "system.cache_size",
+          "domain_id": "system",
+          "name": "cache_size",
+          "type": "integer",
+          "required": false,
+          "default": "10485760",
+          "allowed_values": [],
+          "forbidden_values": [],
+          "description": "Maximum memory cached configuration instances in bytes (default: 10485760).",
+          "validator_refs": [
+            "system_cache_size_range_i64"
+          ],
+          "counterexample_refs": [
+            "out_of_range"
+          ],
+          "override_policy_ref": null,
+          "source_binding": "schema",
+          "stability": "stable"
+        },
+        {
+          "id": "system.log_path",
+          "domain_id": "system",
+          "name": "log_path",
+          "type": "String",
+          "required": true,
+          "default": null,
+          "allowed_values": [],
+          "forbidden_values": [],
+          "description": "Absolute or relative path to write lifecycle events (required).",
+          "validator_refs": [
+            "system_log_path_non_empty",
+            "system_log_path_required"
+          ],
+          "counterexample_refs": [
+            "empty",
+            "missing"
+          ],
+          "override_policy_ref": null,
+          "source_binding": "schema",
+          "stability": "stable"
+        }
+      ],
+      "validators": [
+        {
+          "id": "system_cache_size_range_i64",
+          "name": "range_i64",
+          "predicate": "is_valid",
+          "description": "must be in range 1024..=1073741824",
+          "applies_to": [
+            "cache_size"
+          ],
+          "failure_counterexamples": [
+            "out_of_range"
+          ],
+          "severity": "Error"
+        },
+        {
+          "id": "system_log_path_non_empty",
+          "name": "non_empty",
+          "predicate": "is_valid",
+          "description": "must not be empty",
+          "applies_to": [
+            "log_path"
+          ],
+          "failure_counterexamples": [
+            "empty"
+          ],
+          "severity": "Error"
+        },
+        {
+          "id": "system_log_path_required",
+          "name": "required",
+          "predicate": "is_valid",
+          "description": "field is required",
+          "applies_to": [
+            "log_path"
+          ],
+          "failure_counterexamples": [
+            "missing"
+          ],
+          "severity": "Error"
+        }
+      ],
+      "counterexamples": [
+        {
+          "code": "empty",
+          "name": "log_path",
+          "description": "value is empty",
+          "severity": "Error",
+          "detection_rule": "validation_fails",
+          "repair_hint": "provide a non-empty string"
+        },
+        {
+          "code": "missing",
+          "name": "log_path",
+          "description": "required field is missing",
+          "severity": "Error",
+          "detection_rule": "validation_fails",
+          "repair_hint": "provide the required field"
+        },
+        {
+          "code": "out_of_range",
+          "name": "cache_size",
+          "description": "value is out of range",
+          "severity": "Error",
+          "detection_rule": "validation_fails",
+          "repair_hint": "provide a value between 1024 and 1073741824"
+        }
+      ],
+      "override_policy": {
+        "id": "system_override",
+        "allowed": false,
+        "required_reason": false,
+        "required_scope": [],
+        "required_expiration": null,
+        "required_tracking": null,
+        "required_replacement_plan": false,
+        "refusal_conditions": [
+          "no-root-override"
+        ]
+      },
+      "receipt_binding": null,
+      "stability": "stable"
+    }
+  ],
+  "diagnostics": [],
+  "receipts": [
+    {
+      "json_schema_digest": "",
+      "admitted_schema_digest": "",
+      "admitted_config_digest": "44d4f616d23f897f7718aea799cafe0d5190253db28dfd0d816eb18128c33815",
+      "documentation_model_digest": "4c9e73f1727cc0abae02b1a3fa030c9fa89237150bc25ab848b4e718a84fc10e",
+      "projection_digest": "35c714fa7a876dc8e7bb186e1170ce2017cbd5c344767a11b59aa50840473709",
+      "generator_version": "26.6.29",
+      "timestamp": "UNKNOWN",
+      "signer_or_operator": "release-verifier-signer"
+    }
+  ]
+}

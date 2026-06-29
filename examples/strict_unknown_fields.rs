@@ -26,8 +26,8 @@ fn main() {
     println!("--- Strict Unknown Fields Example ---");
 
     // Load invalid_unknown_field.toml which has the extra field: `extra_field = "must_fail"`
-    let loader = TrustedLoader::new()
-        .layer_file("examples/config_patterns/invalid_unknown_field.toml");
+    let loader =
+        TrustedLoader::new().layer_file("examples/config_patterns/invalid_unknown_field.toml");
 
     // DfCM Invariant: load_admitted() is strict by default and rejects unknown fields
     match loader.load_admitted::<AppConfig>() {

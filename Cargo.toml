@@ -1,6 +1,6 @@
 [package]
 name = "star-toml"
-version = "26.6.28"
+version = "26.6.29"
 edition = "2021"
 rust-version = "1.82"
 authors = ["Sean Chatman <sean@chatmangpt.com>"]
@@ -17,9 +17,10 @@ exclude = [".agents/", "PROJECT.md", "TEST_INFRA.md", "TEST_READY.md", "mcp_serv
 serde = { version = "1.0", features = ["derive"] }
 toml = { version = "1.1.0", features = ["preserve_order"] }
 thiserror = "2.0"
-star-toml-derive = { version = "26.6.28", path = "star-toml-derive" }
+star-toml-derive = { version = "26.6.29", path = "star-toml-derive" }
 blake3 = "1"
 wasm4pm-compat = "26.6"
+serde_json = "1.0"
 
 [dev-dependencies]
 tempfile = "3"
@@ -44,6 +45,10 @@ expect_used = "warn"
 name = "verifier_report"
 path = "src/bin/verifier_report.rs"
 
+[[bin]]
+name = "star_toml_docs"
+path = "src/bin/star_toml_docs.rs"
+
 [features]
 e2e_tests = []
 
@@ -58,4 +63,6 @@ members = [
     ".",
     "star-toml-derive",
     "star-toml-lsp",
+    "star-toml-json-schema",
+    "star-toml-config-test",
 ]

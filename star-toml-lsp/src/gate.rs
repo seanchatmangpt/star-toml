@@ -2,8 +2,9 @@
 //!
 //! Gate file is EDITOR-TIME ONLY. It does not grant q_config standing.
 
-use lsp_max::lsp_types_max::{Diagnostic, DiagnosticSeverity};
 use std::path::{Path, PathBuf};
+
+use lsp_max::lsp_types_max::{Diagnostic, DiagnosticSeverity};
 
 pub struct GateState {
     pub andon: bool,
@@ -14,20 +15,13 @@ pub struct GateState {
 
 impl GateState {
     pub fn from_diagnostics(diags: &[Diagnostic]) -> Self {
-        let errors = diags
-            .iter()
-            .filter(|d| matches!(d.severity, Some(DiagnosticSeverity::ERROR)))
-            .count();
+        let errors =
+            diags.iter().filter(|d| matches!(d.severity, Some(DiagnosticSeverity::ERROR))).count();
         let warnings = diags
             .iter()
             .filter(|d| matches!(d.severity, Some(DiagnosticSeverity::WARNING)))
             .count();
-        Self {
-            andon: errors > 0,
-            diagnostics: diags.len(),
-            errors,
-            warnings,
-        }
+        Self { andon: errors > 0, diagnostics: diags.len(), errors, warnings }
     }
 }
 

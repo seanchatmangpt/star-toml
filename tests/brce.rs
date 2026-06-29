@@ -14,14 +14,14 @@ use serde::{Deserialize, Serialize};
 use star_toml::{
     loader::{BoundedSources, ConfigLifecycle},
     merge::{deep_merge_traced, WinnerMap},
-    reports::{SourceKind},
+    reports::SourceKind,
     Config, Error, Loader, TrustedLoader, Validate, Validator,
 };
-use tempfile::{NamedTempFile, TempDir};
-use toml::Value;
 // Suppress unused imports from earlier patterns
 #[allow(unused_imports)]
-use star_toml::{PathPolicy, PathWitness, resolve_and_validate};
+use star_toml::{resolve_and_validate, PathPolicy, PathWitness};
+use tempfile::{NamedTempFile, TempDir};
+use toml::Value;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,8 +39,7 @@ fn leaf_paths(val: &Value, prefix: &str) -> Vec<String> {
         Value::Table(t) => t
             .iter()
             .flat_map(|(k, v)| {
-                let p =
-                    if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
+                let p = if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
                 leaf_paths(v, &p)
             })
             .collect(),
@@ -82,9 +81,7 @@ fn test_load_frozen_requires_validation() {
     let dir = TempDir::new().unwrap();
     write_toml(&dir, "cfg.toml", "name = \"\"\nport = 80\n"); // both fields invalid
 
-    let res = TrustedLoader::new()
-        .layer_file(dir.path().join("cfg.toml"))
-        .load_frozen::<Cfg>();
+    let res = TrustedLoader::new().layer_file(dir.path().join("cfg.toml")).load_frozen::<Cfg>();
 
     assert!(res.is_err(), "load_frozen must not succeed when validation fails");
     assert!(matches!(res, Err(Error::Invalid(_))));
@@ -97,10 +94,8 @@ fn test_load_frozen_succeeds_with_valid_config() {
     let dir = TempDir::new().unwrap();
     write_toml(&dir, "cfg.toml", "name = \"app\"\nport = 8080\n");
 
-    let result = TrustedLoader::new()
-        .layer_file(dir.path().join("cfg.toml"))
-        .load_frozen::<Cfg>()
-        .unwrap();
+    let result =
+        TrustedLoader::new().layer_file(dir.path().join("cfg.toml")).load_frozen::<Cfg>().unwrap();
 
     assert_eq!(result.config.get().name, "app");
     assert_eq!(result.config.get().port, 8080);
@@ -117,10 +112,7 @@ fn test_source_report_records_required_file() {
     let dir = TempDir::new().unwrap();
     let path = write_toml(&dir, "cfg.toml", "name = \"app\"\nport = 8080\n");
 
-    let result = TrustedLoader::new()
-        .layer_file(path.clone())
-        .load_frozen::<Cfg>()
-        .unwrap();
+    let result = TrustedLoader::new().layer_file(path.clone()).load_frozen::<Cfg>().unwrap();
 
     let entries = &result.source_report.entries;
     assert_eq!(entries.len(), 1);
@@ -137,9 +129,8 @@ fn test_source_report_records_required_file() {
 fn test_missing_required_file_fails() {
     // BRCE: falsification
     // A required file that does not exist must produce an immediate error.
-    let res = TrustedLoader::new()
-        .layer_file("/nonexistent/does-not-exist.toml")
-        .load_frozen::<Cfg>();
+    let res =
+        TrustedLoader::new().layer_file("/nonexistent/does-not-exist.toml").load_frozen::<Cfg>();
 
     assert!(matches!(res, Err(Error::FileNotFound(_))));
 }
@@ -168,10 +159,8 @@ fn test_optional_missing_file_is_reported() {
 fn test_source_report_str_layer() {
     // BRCE: provenance
     // Str layers also appear in SourceReport with found=true.
-    let bounded = Loader::new()
-        .layer_str("name = \"x\"\nport = 1025\n", "defaults")
-        .load_bounded()
-        .unwrap();
+    let bounded =
+        Loader::new().layer_str("name = \"x\"\nport = 1025\n", "defaults").load_bounded().unwrap();
 
     let entries = &bounded.state.source_report.entries;
     assert_eq!(entries.len(), 1);
@@ -230,11 +219,7 @@ fn test_unprefixed_admitted_env_override_fails() {
     // port must remain 8080 — the unprefixed var was not admitted
     assert_eq!(result.config.get().port, 8080);
     // And it must not appear in the env report at all
-    let found = result
-        .env_report
-        .entries
-        .iter()
-        .any(|e| e.raw_env_key == "TOTALLY_DIFFERENT_PORT");
+    let found = result.env_report.entries.iter().any(|e| e.raw_env_key == "TOTALLY_DIFFERENT_PORT");
     assert!(!found, "unprefixed var must not appear in EnvOverrideReport");
 }
 
@@ -376,14 +361,8 @@ fn test_layer_order_digest_is_deterministic() {
     let dir = TempDir::new().unwrap();
     write_toml(&dir, "cfg.toml", "name = \"app\"\nport = 8080\n");
 
-    let b1 = Loader::new()
-        .layer_file(dir.path().join("cfg.toml"))
-        .load_bounded()
-        .unwrap();
-    let b2 = Loader::new()
-        .layer_file(dir.path().join("cfg.toml"))
-        .load_bounded()
-        .unwrap();
+    let b1 = Loader::new().layer_file(dir.path().join("cfg.toml")).load_bounded().unwrap();
+    let b2 = Loader::new().layer_file(dir.path().join("cfg.toml")).load_bounded().unwrap();
 
     let d1 = &b1.state.layer_report.entries[0].layer_order_digest;
     let d2 = &b2.state.layer_report.entries[0].layer_order_digest;
@@ -499,8 +478,10 @@ fn test_relative_resolved_against_source_parent() {
     // BRCE: truth
     // A relative path is resolved against the directory containing the source file.
     let source = std::path::Path::new("/home/user/project/config.toml");
-    let policy = star_toml::PathPolicy::Sandbox { root: std::path::PathBuf::from("/home/user/project") };
-    let (resolved, witness) = star_toml::resolve_and_validate("data/input.csv", source, &policy).unwrap();
+    let policy =
+        star_toml::PathPolicy::Sandbox { root: std::path::PathBuf::from("/home/user/project") };
+    let (resolved, witness) =
+        star_toml::resolve_and_validate("data/input.csv", source, &policy).unwrap();
     assert_eq!(resolved, std::path::PathBuf::from("/home/user/project/data/input.csv"));
     assert!(witness.accepted);
 }
@@ -560,15 +541,17 @@ fn test_load_admitted_strict_rejects_unknown_fields() {
     // Cfg only has name and port — extra_field is unknown
     write_toml(&dir, "cfg.toml", "name = \"app\"\nport = 8080\nextra_field = \"oops\"\n");
 
-    let result = TrustedLoader::new()
-        .layer_file(dir.path().join("cfg.toml"))
-        .load_admitted::<Cfg>();
+    let result =
+        TrustedLoader::new().layer_file(dir.path().join("cfg.toml")).load_admitted::<Cfg>();
 
     assert!(result.is_err(), "unknown fields must cause load_admitted to fail");
     if let Err(star_toml::Error::Invalid(errs)) = result {
         assert!(errs.errors().iter().any(|e| e.code() == "unknown_field"));
         // Each error must carry a path-precise Loc, never root
-        assert!(errs.errors().iter().all(|e| !e.loc.is_root()), "unknown-field errors must be path-precise");
+        assert!(
+            errs.errors().iter().all(|e| !e.loc.is_root()),
+            "unknown-field errors must be path-precise"
+        );
     } else {
         panic!("Expected Error::Invalid with unknown_field");
     }
@@ -648,10 +631,8 @@ fn test_brce_fitness_score() {
     let dir = TempDir::new().unwrap();
     write_toml(&dir, "cfg.toml", "name = \"ok\"\nport = 8080\n");
 
-    let result = TrustedLoader::new()
-        .layer_file(dir.path().join("cfg.toml"))
-        .load::<Cfg>()
-        .unwrap();
+    let result =
+        TrustedLoader::new().layer_file(dir.path().join("cfg.toml")).load::<Cfg>().unwrap();
 
     assert_eq!(result.validation.fitness, 1.0);
 }
@@ -716,7 +697,10 @@ fn test_unknown_field_in_array_of_tables_rejected() {
     assert!(result.is_err(), "unknown field inside [[servers]] must be rejected by load_admitted");
     if let Err(star_toml::Error::Invalid(errs)) = result {
         let codes: Vec<_> = errs.errors().iter().map(|e| e.code()).collect();
-        assert!(codes.contains(&"unknown_field"), "expected unknown_field error code, got: {codes:?}");
+        assert!(
+            codes.contains(&"unknown_field"),
+            "expected unknown_field error code, got: {codes:?}"
+        );
         // Each unknown-field error must carry a path that includes the array context
         assert!(
             errs.errors().iter().any(|e| !e.loc.is_root()),
@@ -736,7 +720,8 @@ fn test_path_win_backslash_traversal_rejected() {
     // foo\..\bar must be rejected on Unix via normalised separator check
     let source = std::path::Path::new("/tmp/config.toml");
     assert!(resolve_and_validate("foo\\..\\bar", source, &PathPolicy::BlockForbidden).is_err());
-    assert!(resolve_and_validate("foo\\..\\..\\etc\\passwd", source, &PathPolicy::BlockForbidden).is_err());
+    assert!(resolve_and_validate("foo\\..\\..\\etc\\passwd", source, &PathPolicy::BlockForbidden)
+        .is_err());
 }
 
 #[test]

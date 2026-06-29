@@ -72,15 +72,16 @@ pub fn resolve_and_validate(
         _ => None,
     };
 
-    let make_witness = |resolved: Option<PathBuf>, accepted: bool, code: Option<&str>| PathWitness {
-        raw_path: raw_path.to_owned(),
-        source_path: source_path.to_path_buf(),
-        resolved_path: resolved,
-        policy: policy_name.to_owned(),
-        accepted,
-        rejection_code: code.map(str::to_owned),
-        sandbox_root: sandbox_root.clone(),
-    };
+    let make_witness =
+        |resolved: Option<PathBuf>, accepted: bool, code: Option<&str>| PathWitness {
+            raw_path: raw_path.to_owned(),
+            source_path: source_path.to_path_buf(),
+            resolved_path: resolved,
+            policy: policy_name.to_owned(),
+            accepted,
+            rejection_code: code.map(str::to_owned),
+            sandbox_root: sandbox_root.clone(),
+        };
 
     // Reject null bytes
     if raw_path.contains('\0') {
@@ -106,11 +107,7 @@ pub fn resolve_and_validate(
 
     // Resolve relative to source_path.parent()
     let base_dir = source_path.parent().unwrap_or_else(|| Path::new("."));
-    let resolved = if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        base_dir.join(p)
-    };
+    let resolved = if p.is_absolute() { p.to_path_buf() } else { base_dir.join(p) };
 
     // Canonicalize-ish: clean without requiring existence by walking components
     let resolved = clean_path(&resolved);

@@ -1,0 +1,598 @@
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:      <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix sh:       <http://www.w3.org/ns/shacl#> .
+@prefix skos:     <http://www.w3.org/2004/02/skos/core#> .
+@prefix dct:      <http://purl.org/dc/terms/> .
+@prefix prov:     <http://www.w3.org/ns/prov#> .
+@prefix odrl:     <http://www.w3.org/ns/odrl/2/> .
+@prefix dpv:      <https://w3id.org/dpv#> .
+
+@prefix st:       <https://w3id.org/star-toml/ns#> .
+@prefix stmacro:  <https://w3id.org/star-toml/macro#> .
+@prefix stjson:   <https://w3id.org/star-toml/json-schema#> .
+
+#################################################################
+# star-toml Macro Application Profile
+#
+# Purpose:
+# Provide a small declarative abstraction layer so a product author
+# can declare a high-level capability profile instead of manually
+# wiring schema admission, config admission, generated docs,
+# JSON Schema bridge checks, receipts, and release gates.
+#
+# Product law:
+# JSON Schema describes shape.
+# star-toml admits standing.
+# Generated docs make admitted law readable.
+# Receipts make admitted law accountable.
+#################################################################
+
+stmacro:StarTomlMacroProfile
+    a owl:Ontology ;
+    dct:title "star-toml Macro Application Profile" ;
+    dct:description "A declarative macro layer for describing star-toml admitted configuration capabilities using RDF, SHACL, ODRL, PROV-O, DPV, SKOS, and minimal star-toml-specific terms." ;
+    owl:versionInfo "0.1.0" .
+
+#################################################################
+# Core Classes
+#################################################################
+
+stmacro:Macro
+    a owl:Class ;
+    rdfs:label "Macro" ;
+    rdfs:comment "A declarative abstraction that expands into standing requirements, policies, shapes, diagnostics, receipts, and projections." .
+
+stmacro:CapabilityProfile
+    a owl:Class ;
+    rdfs:subClassOf stmacro:Macro ;
+    rdfs:label "Capability Profile" ;
+    rdfs:comment "A high-level product capability profile that describes what must be admitted before execution or release-standing." .
+
+stmacro:FeatureFlaggedCrateProfile
+    a owl:Class ;
+    rdfs:subClassOf stmacro:CapabilityProfile ;
+    rdfs:label "Feature-Flagged Crate Profile" ;
+    rdfs:comment "A capability profile for an optional crate or feature boundary." .
+
+stmacro:StandingMacro
+    a owl:Class ;
+    rdfs:subClassOf stmacro:Macro ;
+    rdfs:label "Standing Macro" ;
+    rdfs:comment "A macro that declares the predicates required for standing." .
+
+stmacro:ProjectionMacro
+    a owl:Class ;
+    rdfs:subClassOf stmacro:Macro ;
+    rdfs:label "Projection Macro" ;
+    rdfs:comment "A macro that declares generated documentation, metadata, LSP, or release-report projections." .
+
+stmacro:ReceiptMacro
+    a owl:Class ;
+    rdfs:subClassOf stmacro:Macro ;
+    rdfs:label "Receipt Macro" ;
+    rdfs:comment "A macro that declares required provenance and digest bindings." .
+
+#################################################################
+# Core Properties
+#################################################################
+
+stmacro:usesMacro
+    a owl:ObjectProperty ;
+    rdfs:label "uses macro" ;
+    rdfs:domain owl:Thing ;
+    rdfs:range stmacro:Macro .
+
+stmacro:enablesCapability
+    a owl:ObjectProperty ;
+    rdfs:label "enables capability" ;
+    rdfs:domain stmacro:CapabilityProfile ;
+    rdfs:range skos:Concept .
+
+stmacro:requiresStanding
+    a owl:ObjectProperty ;
+    rdfs:label "requires standing" ;
+    rdfs:domain stmacro:Macro ;
+    rdfs:range skos:Concept .
+
+stmacro:expandsTo
+    a owl:ObjectProperty ;
+    rdfs:label "expands to" ;
+    rdfs:domain stmacro:Macro ;
+    rdfs:range owl:Thing .
+
+stmacro:requiresDiagnostic
+    a owl:ObjectProperty ;
+    rdfs:label "requires diagnostic" ;
+    rdfs:domain stmacro:Macro ;
+    rdfs:range skos:Concept .
+
+stmacro:requiresProjection
+    a owl:ObjectProperty ;
+    rdfs:label "requires projection" ;
+    rdfs:domain stmacro:Macro ;
+    rdfs:range skos:Concept .
+
+stmacro:requiresReceipt
+    a owl:ObjectProperty ;
+    rdfs:label "requires receipt" ;
+    rdfs:domain stmacro:Macro ;
+    rdfs:range skos:Concept .
+
+stmacro:featureFlag
+    a owl:DatatypeProperty ;
+    rdfs:label "feature flag" ;
+    rdfs:domain stmacro:FeatureFlaggedCrateProfile ;
+    rdfs:range xsd:string .
+
+stmacro:crateName
+    a owl:DatatypeProperty ;
+    rdfs:label "crate name" ;
+    rdfs:domain stmacro:FeatureFlaggedCrateProfile ;
+    rdfs:range xsd:string .
+
+stmacro:macroPurpose
+    a owl:DatatypeProperty ;
+    rdfs:label "macro purpose" ;
+    rdfs:domain stmacro:Macro ;
+    rdfs:range xsd:string .
+
+#################################################################
+# star-toml Standing Vocabulary
+#################################################################
+
+st:StandingConceptScheme
+    a skos:ConceptScheme ;
+    skos:prefLabel "star-toml Standing Concepts" .
+
+st:SchemaAdmission
+    a skos:Concept ;
+    skos:inScheme st:StandingConceptScheme ;
+    skos:prefLabel "Schema admission" ;
+    skos:definition "The schema definition itself has standing before any config instance may claim standing." .
+
+st:ConfigAdmission
+    a skos:Concept ;
+    skos:inScheme st:StandingConceptScheme ;
+    skos:prefLabel "Config admission" ;
+    skos:definition "A config instance conforms to an admitted schema and satisfies star-toml admission predicates." .
+
+st:GeneratedDocsStanding
+    a skos:Concept ;
+    skos:inScheme st:StandingConceptScheme ;
+    skos:prefLabel "Generated documentation standing" ;
+    skos:definition "Generated documentation satisfies coverage, freshness, determinism, and receipt binding." .
+
+st:ReceiptBinding
+    a skos:Concept ;
+    skos:inScheme st:StandingConceptScheme ;
+    skos:prefLabel "Receipt binding" ;
+    skos:definition "Digests bind schema, config, docs model, projections, and release evidence." .
+
+st:ReleaseStanding
+    a skos:Concept ;
+    skos:inScheme st:StandingConceptScheme ;
+    skos:prefLabel "Release standing" ;
+    skos:definition "The release may stand only if schema, config, docs, receipts, and verifier gates pass." .
+
+st:JsonSchemaBridgeStanding
+    a skos:Concept ;
+    skos:inScheme st:StandingConceptScheme ;
+    skos:prefLabel "JSON Schema bridge standing" ;
+    skos:definition "A JSON Schema candidate may participate in star-toml admission without bypassing star-toml standing." .
+
+#################################################################
+# Capabilities
+#################################################################
+
+st:CONFIG_SCHEMA_ADMISSION
+    a skos:Concept ;
+    skos:prefLabel "CONFIG_SCHEMA_ADMISSION" ;
+    skos:definition "Admit schema definitions before admitting config instances." .
+
+st:CONFIG_DOC_EXPORT
+    a skos:Concept ;
+    skos:prefLabel "CONFIG_DOC_EXPORT" ;
+    skos:definition "Export generated configuration documentation from admitted facts." .
+
+st:CONFIG_JSON_SCHEMA_BRIDGE
+    a skos:Concept ;
+    skos:prefLabel "CONFIG_JSON_SCHEMA_BRIDGE" ;
+    skos:definition "Use JSON Schema as a public schema source while preserving star-toml admission." .
+
+#################################################################
+# Diagnostic Vocabulary
+#################################################################
+
+st:DiagnosticConceptScheme
+    a skos:ConceptScheme ;
+    skos:prefLabel "star-toml Diagnostics" .
+
+st:DOC-010
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "DOC-010 GeneratedDocsOutOfDate" ;
+    skos:definition "Generated documentation is stale relative to admitted facts or export version." .
+
+st:DOC-012
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "DOC-012 DocsGeneratedFromUnadmittedFacts" ;
+    skos:definition "Documentation was generated from facts that failed admission." .
+
+st:DOC-020
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "DOC-020 ReceiptDigestMismatch" ;
+    skos:definition "Documentation receipt digest does not match the computed digest evidence." .
+
+st:SCH-JSON-007
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "SCH-JSON-007 JsonSchemaAllowsUnboundedAdditionalProperties" ;
+    skos:definition "A JSON Schema-backed stable domain permits unbounded additional configuration without an admitted policy." .
+
+st:SCH-JSON-008
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "SCH-JSON-008 ConfigValidatedAgainstUnadmittedJsonSchema" ;
+    skos:definition "A config instance was validated against JSON Schema that has not been admitted by star-toml." .
+
+st:SCH-JSON-009
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "SCH-JSON-009 DocsGeneratedFromUnadmittedJsonSchema" ;
+    skos:definition "Generated docs were produced from JSON Schema that has not been admitted." .
+
+st:SCH-JSON-010
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "SCH-JSON-010 JsonSchemaDigestMismatch" ;
+    skos:definition "The bound JSON Schema digest does not match the current schema candidate digest." .
+
+st:SCH-JSON-015
+    a skos:Concept ;
+    skos:inScheme st:DiagnosticConceptScheme ;
+    skos:prefLabel "SCH-JSON-015 JsonSchemaAuthorityBoundaryMissing" ;
+    skos:definition "A stable JSON Schema-backed domain lacks an admitted authority boundary." .
+
+#################################################################
+# Macro: Admitted Generated Configuration Documentation
+#################################################################
+
+stmacro:GeneratedConfigDocsMacro
+    a stmacro:ProjectionMacro, prov:Plan ;
+    dct:title "Generated Configuration Documentation Macro" ;
+    stmacro:macroPurpose "Declare that admitted config law must generate readable and machine-readable documentation with standing." ;
+    stmacro:enablesCapability st:CONFIG_DOC_EXPORT ;
+    stmacro:requiresStanding st:SchemaAdmission ;
+    stmacro:requiresStanding st:ConfigAdmission ;
+    stmacro:requiresStanding st:GeneratedDocsStanding ;
+    stmacro:requiresStanding st:ReceiptBinding ;
+    stmacro:requiresDiagnostic st:DOC-010 ;
+    stmacro:requiresDiagnostic st:DOC-012 ;
+    stmacro:requiresDiagnostic st:DOC-020 ;
+    stmacro:requiresProjection st:HumanReadableDocsProjection ;
+    stmacro:requiresProjection st:MachineReadableDocsProjection ;
+    stmacro:requiresReceipt st:DocsReceipt ;
+    stmacro:expandsTo st:GeneratedDocsPolicy ;
+    stmacro:expandsTo st:GeneratedDocsStandingShape ;
+    stmacro:expandsTo st:DocsReceiptPolicy .
+
+st:GeneratedDocsPolicy
+    a odrl:Policy ;
+    dct:title "Generated Configuration Documentation Policy" ;
+    odrl:duty [
+        a odrl:Duty ;
+        odrl:action st:GenerateHumanReadableDocumentation ;
+        odrl:target st:AdmittedConfigurationFacts
+    ] ;
+    odrl:duty [
+        a odrl:Duty ;
+        odrl:action st:GenerateMachineReadableMetadata ;
+        odrl:target st:AdmittedConfigurationFacts
+    ] ;
+    odrl:prohibition [
+        a odrl:Prohibition ;
+        odrl:action st:ClaimStandingFromManualDocumentation ;
+        odrl:target st:ConfigurationDocumentation
+    ] ;
+    odrl:prohibition [
+        a odrl:Prohibition ;
+        odrl:action st:ReleaseWithStaleGeneratedDocumentation ;
+        odrl:target st:ReleaseCandidate
+    ] .
+
+st:GeneratedDocsStandingShape
+    a sh:NodeShape ;
+    rdfs:label "Generated Docs Standing Shape" ;
+    sh:targetClass st:GeneratedDocumentationModel ;
+    sh:property [
+        sh:path st:hasDomainCoverage ;
+        sh:hasValue true ;
+        sh:message "Generated docs must cover every stable admitted configuration domain."
+    ] ;
+    sh:property [
+        sh:path st:hasFieldCoverage ;
+        sh:hasValue true ;
+        sh:message "Generated docs must cover every stable admitted configuration field."
+    ] ;
+    sh:property [
+        sh:path st:hasValidatorCoverage ;
+        sh:hasValue true ;
+        sh:message "Generated docs must cover validators that affect standing."
+    ] ;
+    sh:property [
+        sh:path st:hasCounterexampleCoverage ;
+        sh:hasValue true ;
+        sh:message "Generated docs must map standing failures to counterexamples."
+    ] ;
+    sh:property [
+        sh:path st:isFresh ;
+        sh:hasValue true ;
+        sh:message "Generated docs are stale. Diagnostic: DOC-010."
+    ] ;
+    sh:property [
+        sh:path st:isDeterministic ;
+        sh:hasValue true ;
+        sh:message "Generated docs model must be deterministic."
+    ] ;
+    sh:property [
+        sh:path st:hasReceiptBinding ;
+        sh:minCount 1 ;
+        sh:message "Generated docs must be receipt-bound. Diagnostic: DOC-020."
+    ] .
+
+#################################################################
+# Macro: JSON Schema Bridge
+#################################################################
+
+stmacro:JsonSchemaBridgeMacro
+    a stmacro:FeatureFlaggedCrateProfile, prov:Plan ;
+    dct:title "JSON Schema Bridge Macro" ;
+    stmacro:crateName "star-toml-json-schema" ;
+    stmacro:featureFlag "json-schema" ;
+    stmacro:macroPurpose "Declare JSON Schema as a public shape source that must pass star-toml admission before standing." ;
+    stmacro:enablesCapability st:CONFIG_JSON_SCHEMA_BRIDGE ;
+    stmacro:requiresStanding st:JsonSchemaBridgeStanding ;
+    stmacro:requiresStanding st:SchemaAdmission ;
+    stmacro:requiresStanding st:ConfigAdmission ;
+    stmacro:requiresStanding st:GeneratedDocsStanding ;
+    stmacro:requiresStanding st:ReceiptBinding ;
+    stmacro:requiresStanding st:ReleaseStanding ;
+    stmacro:requiresDiagnostic st:SCH-JSON-007 ;
+    stmacro:requiresDiagnostic st:SCH-JSON-008 ;
+    stmacro:requiresDiagnostic st:SCH-JSON-009 ;
+    stmacro:requiresDiagnostic st:SCH-JSON-010 ;
+    stmacro:requiresDiagnostic st:SCH-JSON-015 ;
+    stmacro:requiresProjection st:JsonSchemaBackedDocsProjection ;
+    stmacro:requiresReceipt st:JsonSchemaDigestReceipt ;
+    stmacro:expandsTo st:JsonSchemaBridgePolicy ;
+    stmacro:expandsTo st:JsonSchemaBridgeStandingShape ;
+    stmacro:expandsTo st:JsonSchemaReceiptPolicy .
+
+st:JsonSchemaBridgePolicy
+    a odrl:Policy ;
+    dct:title "JSON Schema Bridge Policy" ;
+    odrl:permission [
+        a odrl:Permission ;
+        odrl:action st:ImportPublicSchemaShape ;
+        odrl:target stjson:JsonSchemaDocument
+    ] ;
+    odrl:permission [
+        a odrl:Permission ;
+        odrl:action st:ExportPublicSchemaShape ;
+        odrl:target st:AdmittedSchemaFacts
+    ] ;
+    odrl:prohibition [
+        a odrl:Prohibition ;
+        odrl:action st:BypassSchemaAdmission ;
+        odrl:target stjson:JsonSchemaDocument
+    ] ;
+    odrl:prohibition [
+        a odrl:Prohibition ;
+        odrl:action st:BypassGeneratedDocsStanding ;
+        odrl:target stjson:JsonSchemaDocument
+    ] ;
+    odrl:prohibition [
+        a odrl:Prohibition ;
+        odrl:action st:BypassReceiptBinding ;
+        odrl:target stjson:JsonSchemaDocument
+    ] ;
+    odrl:duty [
+        a odrl:Duty ;
+        odrl:action st:BindJsonSchemaDigest ;
+        odrl:target stjson:JsonSchemaDocument
+    ] ;
+    odrl:duty [
+        a odrl:Duty ;
+        odrl:action st:DeclareAuthorityBoundary ;
+        odrl:target st:StableSchemaBackedDomain
+    ] .
+
+st:JsonSchemaBridgeStandingShape
+    a sh:NodeShape ;
+    rdfs:label "JSON Schema Bridge Standing Shape" ;
+    sh:targetClass stjson:JsonSchemaBackedSchema ;
+    sh:property [
+        sh:path st:hasSchemaDigest ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "JSON Schema-backed schema must have a bound schema digest. Diagnostic: SCH-JSON-010."
+    ] ;
+    sh:property [
+        sh:path st:hasAdmittedSchema ;
+        sh:hasValue true ;
+        sh:message "JSON Schema-backed config cannot stand unless the schema has been admitted. Diagnostic: SCH-JSON-008."
+    ] ;
+    sh:property [
+        sh:path st:hasAuthorityBoundary ;
+        sh:minCount 1 ;
+        sh:message "Stable JSON Schema-backed domains require authority boundaries. Diagnostic: SCH-JSON-015."
+    ] ;
+    sh:property [
+        sh:path st:allowsUnboundedAdditionalProperties ;
+        sh:not [
+            sh:hasValue true
+        ] ;
+        sh:message "Unbounded additional properties are not admitted for stable domains without declared policy. Diagnostic: SCH-JSON-007."
+    ] ;
+    sh:property [
+        sh:path st:docsGeneratedFromAdmittedSchema ;
+        sh:hasValue true ;
+        sh:message "Docs must be generated from admitted JSON Schema-backed facts. Diagnostic: SCH-JSON-009."
+    ] .
+
+#################################################################
+# Macro: Schema Admission
+#################################################################
+
+stmacro:SchemaAdmissionMacro
+    a stmacro:StandingMacro, prov:Plan ;
+    dct:title "Schema Admission Macro" ;
+    stmacro:macroPurpose "Declare that schema definitions must stand before config instances can stand." ;
+    stmacro:enablesCapability st:CONFIG_SCHEMA_ADMISSION ;
+    stmacro:requiresStanding st:SchemaAdmission ;
+    stmacro:requiresReceipt st:SchemaReceipt ;
+    stmacro:expandsTo st:SchemaAdmissionPolicy ;
+    stmacro:expandsTo st:SchemaStandingShape .
+
+st:SchemaAdmissionPolicy
+    a odrl:Policy ;
+    dct:title "Schema Admission Policy" ;
+    odrl:prohibition [
+        a odrl:Prohibition ;
+        odrl:action st:AdmitConfigAgainstUnadmittedSchema ;
+        odrl:target st:ConfigInstance
+    ] ;
+    odrl:prohibition [
+        a odrl:Prohibition ;
+        odrl:action st:GenerateCodeFromUnadmittedSchema ;
+        odrl:target st:SchemaCandidate
+    ] ;
+    odrl:duty [
+        a odrl:Duty ;
+        odrl:action st:BindSchemaReceipt ;
+        odrl:target st:SchemaCandidate
+    ] .
+
+st:SchemaStandingShape
+    a sh:NodeShape ;
+    rdfs:label "Schema Standing Shape" ;
+    sh:targetClass st:SchemaCandidate ;
+    sh:property [
+        sh:path st:hasDomainBoundedness ;
+        sh:hasValue true ;
+        sh:message "Schema must declare bounded domains."
+    ] ;
+    sh:property [
+        sh:path st:hasFieldBoundedness ;
+        sh:hasValue true ;
+        sh:message "Schema must declare bounded fields."
+    ] ;
+    sh:property [
+        sh:path st:hasAuthorityBoundary ;
+        sh:minCount 1 ;
+        sh:message "Schema must declare authority boundaries for stable domains."
+    ] ;
+    sh:property [
+        sh:path st:isDocsProjectable ;
+        sh:hasValue true ;
+        sh:message "Schema must be projectable into generated documentation."
+    ] ;
+    sh:property [
+        sh:path st:isCodeProjectable ;
+        sh:hasValue true ;
+        sh:message "Schema must be projectable into code shape before generated code may claim standing."
+    ] ;
+    sh:property [
+        sh:path st:hasReceiptBinding ;
+        sh:minCount 1 ;
+        sh:message "Schema must be receipt-bound before standing."
+    ] .
+
+#################################################################
+# Macro: Full Easy Mode
+#
+# Product author uses this one macro when they want:
+# - optional JSON Schema crate boundary
+# - schema admission
+# - config admission
+# - generated docs
+# - receipts
+# - release standing
+#################################################################
+
+stmacro:AdmittedJsonSchemaDocsCrateMacro
+    a stmacro:FeatureFlaggedCrateProfile, prov:Plan ;
+    dct:title "Admitted JSON Schema Docs Crate Macro" ;
+    stmacro:crateName "star-toml-json-schema" ;
+    stmacro:featureFlag "json-schema" ;
+    stmacro:macroPurpose "One high-level macro declaring an optional JSON Schema bridge crate whose schema-backed configuration can only govern runtime behavior after star-toml admission, generated documentation, receipt binding, and release verification." ;
+    stmacro:usesMacro stmacro:JsonSchemaBridgeMacro ;
+    stmacro:usesMacro stmacro:SchemaAdmissionMacro ;
+    stmacro:usesMacro stmacro:GeneratedConfigDocsMacro ;
+    stmacro:requiresStanding st:JsonSchemaBridgeStanding ;
+    stmacro:requiresStanding st:SchemaAdmission ;
+    stmacro:requiresStanding st:ConfigAdmission ;
+    stmacro:requiresStanding st:GeneratedDocsStanding ;
+    stmacro:requiresStanding st:ReceiptBinding ;
+    stmacro:requiresStanding st:ReleaseStanding .
+
+#################################################################
+# Minimal User-Facing Declaration Example
+#
+# This is the desired abstraction:
+# The product author declares this.
+# The macro expander / generator / verifier expands it into the
+# required policy, shapes, diagnostics, projections, and receipts.
+#################################################################
+
+stjson:JsonSchemaCrateFeature
+    a stmacro:FeatureFlaggedCrateProfile ;
+    dct:title "star-toml JSON Schema Crate Feature" ;
+    stmacro:usesMacro stmacro:AdmittedJsonSchemaDocsCrateMacro ;
+    stmacro:crateName "star-toml-json-schema" ;
+    stmacro:featureFlag "json-schema" ;
+    stmacro:enablesCapability st:CONFIG_JSON_SCHEMA_BRIDGE ;
+    stmacro:requiresStanding st:JsonSchemaBridgeStanding ;
+    stmacro:requiresStanding st:SchemaAdmission ;
+    stmacro:requiresStanding st:ConfigAdmission ;
+    stmacro:requiresStanding st:GeneratedDocsStanding ;
+    stmacro:requiresStanding st:ReceiptBinding ;
+    stmacro:requiresStanding st:ReleaseStanding .
+
+#################################################################
+# Human-Readable Product Doctrine
+#################################################################
+
+stmacro:Doctrine
+    a skos:ConceptScheme ;
+    skos:prefLabel "star-toml Macro Doctrine" .
+
+stmacro:JsonSchemaShapeNotStanding
+    a skos:Concept ;
+    skos:inScheme stmacro:Doctrine ;
+    skos:prefLabel "JSON Schema describes shape; star-toml admits standing." .
+
+stmacro:GeneratedDocsGovern
+    a skos:Concept ;
+    skos:inScheme stmacro:Doctrine ;
+    skos:prefLabel "Manual docs may explain; generated docs govern." .
+
+stmacro:NoAdmittedSchemaNoAdmittedConfig
+    a skos:Concept ;
+    skos:inScheme stmacro:Doctrine ;
+    skos:prefLabel "No admitted schema, no admitted config." .
+
+stmacro:NoReadableLawNoResponsibilityHandoff
+    a skos:Concept ;
+    skos:inScheme stmacro:Doctrine ;
+    skos:prefLabel "No readable law, no responsibility handoff." .
+
+stmacro:NoReceiptNoStanding
+    a skos:Concept ;
+    skos:inScheme stmacro:Doctrine ;
+    skos:prefLabel "No receipt, no standing." .
+
