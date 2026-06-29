@@ -407,6 +407,7 @@
     missing_docs
 )]
 
+pub mod autonomic;
 pub mod error;
 pub mod events;
 pub mod expand;
