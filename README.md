@@ -1,5 +1,7 @@
 # star-toml
 
+**Version**: v26.6.29
+
 A framework for loading, layering, validating, and **admitting** configuration files in Rust — the `*` in `*.toml`.
 
 Most configuration frameworks parse a file into a struct and stop. `star-toml` treats configuration as **operational law** and provides the core substrate for **config admission**.

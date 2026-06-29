@@ -17,12 +17,12 @@
 
 <doc/star-toml-core-ttl>
     a dcat:Dataset, prov:Entity ;
-    dcterms:title "star-toml v26.6.28 Core TTL Ontology" ;
+    dcterms:title "star-toml v26.6.29 Core TTL Ontology" ;
     dcterms:description "Core RDF/Turtle ontology for star-toml as the Vision 2030 config admission substrate. Models BRCE, bounds, lifecycles, and artifacts." ;
     dcterms:identifier "star-toml-core-ttl" ;
     dcterms:subject <concept/BRCE>, <concept/ConfigAdmission> ;
-    dcterms:hasVersion "26.6.28" ;
-    prov:wasDerivedFrom <doc/vision-2030-star-toml>, <doc/jira-st-101-st-110> .
+    dcterms:hasVersion "26.6.29" ;
+    prov:wasDerivedFrom <doc/vision-2030-star-toml>, <doc/jira-st-101-st-110>, <doc/jira-st-112-st-113> .
 
 <doc/vision-2030-star-toml>
     a prov:Entity ;
@@ -31,8 +31,13 @@
 
 <doc/jira-st-101-st-110>
     a prov:Entity ;
-    dcterms:title "Jira Board for Star TOML v26.6.28" ;
+    dcterms:title "Jira Board for Star TOML v26.6.29" ;
     dcterms:description "Formal tickets ST-101 through ST-110 covering typestate lifecycle, source/layer/env bounds, validation/path/rewrite/witness bounds, LSP, and verification ladder." .
+
+<doc/jira-st-112-st-113>
+    a prov:Entity ;
+    dcterms:title "Jira Board for Star TOML v26.6.29" ;
+    dcterms:description "Formal tickets ST-112 and ST-113 covering updates and JIRA ticket annotations." .
 
 #################################################################
 # Concept Scheme
@@ -125,7 +130,7 @@
     a prov:Entity, dcat:SoftwareApplication ;
     dcterms:title "star-toml" ;
     dcterms:description "Vision 2030 config admission substrate. Converts raw TOML/config observations into bounded config standing surfaces." ;
-    dcterms:hasVersion "26.6.28" ;
+    dcterms:hasVersion "26.6.29" ;
     prov:wasInfluencedBy <concept/BRCE>, <law/no-project-law-without-admitted-config> .
 
 #################################################################

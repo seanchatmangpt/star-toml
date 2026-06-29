@@ -17,17 +17,22 @@
 
 <doc/star-toml-ocel-ttl>
     a dcat:Dataset, prov:Entity ;
-    dcterms:title "star-toml v26.6.28 OCEL Mapping Ontology" ;
+    dcterms:title "star-toml v26.6.29 OCEL Mapping Ontology" ;
     dcterms:description "Object-Centric Event Log (OCEL) mapping ontology for configuration process-evidence logging via wasm4pm-compat." ;
     dcterms:identifier "star-toml-ocel-ttl" ;
     dcterms:subject <concept/OCELLifecycleHistory>, <concept/ConfigLifecycle> ;
-    dcterms:hasVersion "26.6.28" ;
-    prov:wasDerivedFrom <doc/ocel-probe-receipt> .
+    dcterms:hasVersion "26.6.29" ;
+    prov:wasDerivedFrom <doc/ocel-probe-receipt>, <doc/jira-st-112-st-113> .
 
 <doc/ocel-probe-receipt>
     a prov:Entity ;
     dcterms:title "wasm4pm-compat OCEL Export Probe Receipt" ;
     dcterms:description "Implementation receipt showing star-toml can export lifecycle events to wasm4pm-compat OCEL types without computing q_config." .
+
+<doc/jira-st-112-st-113>
+    a prov:Entity ;
+    dcterms:title "Jira Board for Star TOML v26.6.29" ;
+    dcterms:description "Formal tickets ST-112 and ST-113 covering updates and JIRA ticket annotations." .
 
 #################################################################
 # OCEL Lifecycle History
