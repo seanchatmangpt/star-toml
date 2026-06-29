@@ -7,6 +7,9 @@ authors = ["Sean Chatman <sean@chatmangpt.com>"]
 license = "MIT"
 description = "Procedural macro derive crate for star-toml validation"
 repository = "https://github.com/seanchatmangpt/star-toml"
+homepage = "https://github.com/seanchatmangpt/star-toml"
+keywords = ["derive", "proc-macro", "validation", "toml", "config"]
+categories = ["development-tools"]
 
 [lib]
 proc-macro = true

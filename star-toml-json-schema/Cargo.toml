@@ -6,6 +6,10 @@ rust-version = "1.82"
 authors = ["Sean Chatman <sean@chatmangpt.com>"]
 license = "MIT"
 description = "Optional JSON Schema bridge for star-toml"
+repository = "https://github.com/seanchatmangpt/star-toml"
+homepage = "https://github.com/seanchatmangpt/star-toml"
+keywords = ["json-schema", "toml", "validation", "config"]
+categories = ["development-tools", "config"]
 
 [dependencies]
 star-toml = { path = "..", version = "26.6.29" }

@@ -18,6 +18,24 @@ and the gate that decides standing.
 
 ---
 
+## Crate Ecosystem
+
+| Crate | Description |
+|-------|-------------|
+| [`star-toml`] | Core admission framework — schema, layering, validation |
+| [`star-toml-derive`] | Procedural macros for custom validator derivation |
+| [`star-toml-json-schema`] | JSON Schema bridge — import/export, 16-check bridge validation |
+| [`star-toml-config-test`] | Runtime conformance test helpers and DfCM matrix runner |
+| [`star-toml-lsp`] | LSP server — live diagnostics, hover cards, release-verifier commands |
+
+[`star-toml`]: https://crates.io/crates/star-toml
+[`star-toml-derive`]: https://crates.io/crates/star-toml-derive
+[`star-toml-json-schema`]: https://crates.io/crates/star-toml-json-schema
+[`star-toml-config-test`]: https://crates.io/crates/star-toml-config-test
+[`star-toml-lsp`]: https://crates.io/crates/star-toml-lsp
+
+---
+
 ## 🏛️ The Core Thesis: Configuration is Operational Law
 
 Most software systems do not fail because they lack code. They fail because their operational law is implicit, underbounded, or non-witnessed.

@@ -7,6 +7,9 @@ authors = ["Sean Chatman <sean@chatmangpt.com>"]
 license = "MIT"
 description = "Language server for *.toml config files validated by star-toml"
 repository = "https://github.com/seanchatmangpt/star-toml"
+homepage = "https://github.com/seanchatmangpt/star-toml"
+keywords = ["lsp", "language-server", "toml", "config", "diagnostics"]
+categories = ["development-tools"]
 
 [dependencies]
 star-toml = { path = "..", version = "26.6.29" }

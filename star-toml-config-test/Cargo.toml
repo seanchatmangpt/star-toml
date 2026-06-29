@@ -7,6 +7,9 @@ authors = ["Sean Chatman <sean@chatmangpt.com>"]
 license = "MIT"
 description = "Runtime config conformance test helpers for star-toml"
 repository = "https://github.com/seanchatmangpt/star-toml"
+homepage = "https://github.com/seanchatmangpt/star-toml"
+keywords = ["testing", "config", "toml", "conformance", "validation"]
+categories = ["development-tools::testing", "config"]
 
 [dependencies]
 star-toml = { path = "..", version = "26.6.29" }
