@@ -1,0 +1,564 @@
+% ============================================================
+%  Chapter 5: Praxis — Fleet Retrofit and Operational Deployment
+%  Admitting Configurations Across Heterogeneous Environments
+% ============================================================
+
+\chapter{Praxis: Fleet Retrofit and Operational Deployment}
+\label{ch:praxis}
+
+\section{Introduction: Admission at Scale}
+
+The \texttt{star-toml} library (Chapter~\ref{ch:implementation}) and \texttt{cargo-cicd} system (Chapter~\ref{ch:cargo-cicd}) solve the problem of \emph{individual configuration admission}: given one artifact, decide $q_B = 1$. But organizations do not release one configuration. They manage fleets: multiple services, multiple environments, multiple versions in flight.
+
+The problem of \emph{fleet retrofit} is this: an organization has deployed thousands of configuration files across dozens of services running in dev, staging, and production. Most of these files were generated without the BRCE in mind. They may violate constraints. They may lack witnesses. They may conflict with new policies.
+
+The question is: how can an organization migrate from unbounded configurations to admitted ones, without halting all deployments?
+
+This chapter introduces \emph{praxis}: the operational discipline of admitting configurations at scale. The term is used in classical philosophy to mean ``practice grounded in principle''---the application of theory to real systems.
+
+\section{Design Space Analysis: Retrofit Order Strategies}
+
+Given a fleet $\mathcal{F} = \{f_1, \ldots, f_n\}$ of configuration files with dependencies and constraints, in what order should they be retrofitted?
+
+This is a classical operations research problem with several competing objectives:
+
+\begin{itemize}
+  \item \textbf{Minimize downtime}: Retrofit high-availability services last.
+  \item \textbf{Unblock dependencies}: If service A depends on service B, retrofit B first.
+  \item \textbf{Maximize operational progress}: Show wins early to build credibility with operators.
+  \item \textbf{Minimize rework}: If a later-retrofitted service requires changes to earlier ones, minimize the number of reverifications.
+\end{itemize}
+
+Three main strategies were considered.
+
+\subsection{Strategy 1: Topological Sort (Pure Dependency Order)}
+
+\subsubsection{The Approach}
+
+Construct a dependency graph $G = (\mathcal{F}, E)$ where $f_i \to f_j$ means $f_i$ depends on $f_j$. Compute the topological sort:
+
+\begin{lstlisting}[caption={Topological sort retrofit order}]
+fn retrofit_order_topological(fleet: &Fleet) -> Vec<ConfigId> {
+    let mut result = vec![];
+    let mut visited = HashSet::new();
+    fn dfs(node: ConfigId, graph: &Fleet, visited: &mut HashSet<ConfigId>,
+           result: &mut Vec<ConfigId>) {
+        if visited.contains(&node) { return; }
+        visited.insert(node);
+        for dependent in graph.dependents_of(node) {
+            dfs(dependent, graph, visited, result);
+        }
+        result.push(node);
+    }
+    for node in fleet.configs {
+        dfs(node, fleet, &mut visited, &mut result);
+    }
+    result
+}
+\end{lstlisting}
+
+This ensures that if $f_i \to f_j$, then $f_j$ is retrofitted before $f_i$.
+
+\subsubsection{Advantages}
+
+\begin{itemize}
+  \item Guarantees correctness: no configuration is admitted until its dependencies are.
+  \item Simple: DFS is $O(|V| + |E|)$.
+  \item Deterministic: same fleet always produces same order.
+  \item No configuration rework: once a config is retrofitted and admitted, it need not be revisited.
+\end{itemize}
+
+\subsubsection{Disadvantages}
+
+\begin{itemize}
+  \item Slow early progress: if there are long chains of dependencies, the operator sees no wins until the chain is complete.
+  \item Fragile: if the dependency graph is incorrect or missing edges, the retrofit can violate constraints.
+  \item Operational risk: with tightly coupled services (A $\to$ B $\to$ C $\to$ \ldots), a single retrofit must succeed or the entire chain stalls.
+\end{itemize}
+
+\subsection{Strategy 2: Priority Scoring (Risk and Benefit)}
+
+\subsubsection{The Approach}
+
+Assign each configuration a priority score:
+
+\begin{equation}
+\mathrm{Priority}(f) = w_{\mathrm{impact}} \cdot \mathrm{Impact}(f) + w_{\mathrm{risk}} \cdot \mathrm{Risk}(f) + w_{\mathrm{progress}} \cdot \mathrm{Progress}(f)
+\end{equation}
+
+where:
+
+\begin{itemize}
+  \item $\mathrm{Impact}(f)$ is the number of dependents (services that depend on $f$).
+  \item $\mathrm{Risk}(f)$ is the estimated cost of a retrofit failure ($-\mathrm{Risk}$ to incentivize low-risk targets).
+  \item $\mathrm{Progress}(f)$ is a decay function; early retrofits are worth more.
+\end{itemize}
+
+Sort configurations by priority and retrofit in that order:
+
+\begin{lstlisting}[caption={Priority-driven retrofit order}]
+fn retrofit_order_scored(fleet: &Fleet) -> Vec<ConfigId> {
+    let mut configs: Vec<_> = fleet.configs.iter().cloned().collect();
+    configs.sort_by_key(|f| {
+        let impact = fleet.dependents(f).len();
+        let risk = fleet.estimated_retrofit_risk(f);  // 0 to 100
+        let progress = fleet.retrofitted_count(); // temporal discount
+        -1 * (50*impact - 10*risk + 5*progress) as i32  // negate for reverse sort
+    });
+    configs
+}
+\end{lstlisting}
+
+\subsubsection{Advantages}
+
+\begin{itemize}
+  \item Quick wins: high-impact, low-risk configurations are retrofitted early.
+  \item Operational momentum: seeing progress builds team confidence.
+  \item Flexibility: weights can be adjusted in real time based on incidents.
+  \item Resilience: no single configuration blocks the entire retrofit.
+\end{itemize}
+
+\subsubsection{Disadvantages}
+
+\begin{itemize}
+  \item Violation risk: if high-priority configs have unmet dependencies, their retrofit may fail.
+  \item Rework: a config retrofitted early may need re-verification later if its dependencies change.
+  \item Heuristic: the weights $w_i$ are not derived from first principles; they are guesses.
+  \item Instability: if priorities are recomputed frequently, the retrofit order becomes non-deterministic.
+\end{itemize}
+
+\subsection{Strategy 3: User-Driven Replay (Manual Intervention)}
+
+\subsubsection{The Approach}
+
+Rather than compute the order, let the operator decide. Provide a tool that retrofits one configuration at a time, with the ability to skip, defer, or reorder:
+
+\begin{lstlisting}[caption={User-driven retrofit interface}]
+pub struct RetrofitSession {
+    fleet: Fleet,
+    current_index: usize,
+    deferred: HashSet<ConfigId>,
+    decisions: Vec<(ConfigId, Decision)>,
+}
+
+pub enum Decision {
+    Admitted,
+    Failed { reason: String },
+    Deferred,
+    Skipped,
+}
+
+impl RetrofitSession {
+    pub fn next_config(&mut self) -> Option<ConfigId> {
+        while self.current_index < self.fleet.len() {
+            let config_id = self.fleet[self.current_index];
+            self.current_index += 1;
+            if !self.deferred.contains(&config_id) {
+                return Some(config_id);
+            }
+        }
+        None
+    }
+
+    pub fn admit(&mut self, config_id: ConfigId) -> Result<Witness> {
+        let witness = run_pipeline(&config_id)?;
+        self.decisions.push((config_id, Decision::Admitted));
+        Ok(witness)
+    }
+
+    pub fn defer(&mut self, config_id: ConfigId) {
+        self.deferred.insert(config_id);
+    }
+}
+\end{lstlisting}
+
+The operator works through the fleet one config at a time, making tactical decisions based on observed failures.
+
+\subsubsection{Advantages}
+
+\begin{itemize}
+  \item Maximum knowledge: the operator understands the fleet's topology and can make informed decisions.
+  \item Immediate feedback: failures are diagnosed in real time; fixes can be applied immediately.
+  \item No rework: the operator never retrofits a configuration twice.
+  \item Handles surprises: unexpected dependency chains or missing files are caught and fixed on the fly.
+\end{itemize}
+
+\subsubsection{Disadvantages}
+
+\begin{itemize}
+  \item Non-scalable: retrofitting 10,000 services by hand is infeasible.
+  \item Non-reproducible: different operators may retrofit in different orders, leading to different end states.
+  \item Subjective: the retrofit becomes a human decision process, not a deterministic algorithm.
+  \item Burnout: manual retrofit of large fleets is tedious.
+\end{itemize}
+
+\subsection{Why Topological Sort Won (With Modifications)}
+
+\texttt{cargo-cicd}'s retrofit strategy is topological sort, but with three modifications to address the disadvantages:
+
+\begin{enumerate}
+  \item \textbf{Adaptive dependency graph}: Before the retrofit, run a graph-learning phase that discovers missing dependencies by parsing imports, includes, and variable references.
+
+  \item \textbf{Batch processing}: Process independent subtrees in parallel. If the dependency graph has multiple connected components, retrofit each in parallel.
+
+  \item \textbf{Fallback to user-driven mode}: If a configuration fails to retrofit, pause and ask the operator for guidance rather than halting the entire retrofit.
+\end{enumerate}
+
+Topological sort provides the strongest guarantee: correctness. The modifications preserve correctness while improving responsiveness.
+
+\section{Architecture Rationale: The Retrofit Ceremony}
+
+The retrofit of a single configuration proceeds in five phases.
+
+\subsection{Phase 1: Diagnosis}
+
+The operator (or an agent) invokes:
+
+\begin{lstlisting}[caption={Diagnosis phase: assess retrofit feasibility}]
+$ cargo cicd fleet diagnose --config service/app.toml
+
+Diagnostics for service/app.toml:
+  - Parse: OK
+  - Structure: OK
+  - Required fields: MISSING [ db.connection_string, tls.cert_path ]
+  - Constraints: FAILED [ port: 0 not in range [1, 65535] ]
+  - Dependencies: [ service/db.toml, service/cache.toml ]
+  - Est. retrofit time: 15 minutes
+  - Est. risk: MEDIUM (changes 3 fields, affects 5 downstream services)
+\end{lstlisting}
+
+The diagnosis reports what must be changed to achieve standing. This is the $-\nabla(-\tilde{q}(x))$ gradient from Chapter~\ref{ch:calculus}: the direction to move.
+
+\subsection{Phase 2: Repair Proposal}
+
+An agent (or the LSP) proposes repairs:
+
+\begin{lstlisting}[caption={Repair phase: propose changes}]
+$ cargo cicd fleet repair --config service/app.toml --auto-fix
+
+Proposed changes:
+  - port: 0 → 8080 (default; can override with --port)
+  - db.connection_string: add env var ${DB_CONN} (new policy)
+  - tls.cert_path: infer from service name → /etc/tls/service.crt
+
+Apply changes? (y/n/edit)
+\end{lstlisting}
+
+The repair proposal is reversible: the operator can review, modify, or reject it.
+
+\subsection{Phase 3: Replay in Staging}
+
+Before admitting in production, the retrofitted configuration is deployed to staging:
+
+\begin{lstlisting}[caption={Staging validation: verify repairs work}]
+$ cargo cicd fleet deploy --config service/app.toml --target staging
+
+Deploying service/app.toml to staging...
+  Building docker image: OK (12s)
+  Starting service: OK (8s)
+  Health checks: PASS (request /health → 200 OK)
+  Load test (100 req/s): PASS (p99 latency: 45ms)
+
+Ready to promote to production? (y/n)
+\end{lstlisting}
+
+This is a human-in-the-loop gate. The operator sees evidence that the repairs actually work before committing to production.
+
+\subsection{Phase 4: Witness and Receipt}
+
+Once staging confirms the repairs, the configuration is re-validated to ensure it still passes the BRCE after any edits:
+
+\begin{lstlisting}[caption={Witness generation: compute standing}]
+$ cargo cicd fleet admit --config service/app.toml --promote
+
+Validating service/app.toml...
+  BoundSatisfied: OK
+  TransformLawful: OK (layer order documented)
+  WitnessComplete: computing...
+  CounterexamplesAbsent: running 23 detectors...
+
+All checks passed. Witness: blake3-abcd1234...
+Receipt: /var/log/service-app.receipt
+\end{lstlisting}
+
+The receipt includes the witness, the timestamp, the environment snapshot, and a link to the staged deployment proof.
+
+\subsection{Phase 5: Fleet Update}
+
+The retrofitted configuration is deployed to production, and the fleet is updated:
+
+\begin{lstlisting}[caption={Production deployment: fleet update}]
+$ cargo cicd fleet update --config service/app.toml --receipt /var/log/service-app.receipt
+
+Deploying service/app.toml to production...
+  [us-west-2] Deploying: OK
+  [us-east-1] Deploying: OK
+  [eu-central-1] Deploying: OK
+
+Fleet updated. 127 → 128 services admitted.
+Standing: 128/256 (50.0%)
+\end{lstlisting}
+
+The fleet status is tracked: how many of the 256 deployed services are now admitted?
+
+## Architecture Rationale: Why Topological Sort with Adaptive Learning
+
+Topological sort is mathematically sound: it guarantees that dependencies are respected. But the dependency graph must be accurate. Early efforts to retrofit large fleets failed because the dependency graph was incomplete. Service A imports from service B, but the import was not declared in the configuration metadata.
+
+To solve this, \texttt{cargo-cicd} includes a \emph{graph learning} phase before the retrofit:
+
+\begin{lstlisting}[caption={Adaptive dependency graph learning}]
+pub fn discover_dependencies(config: &Config) -> HashSet<ConfigId> {
+    let mut deps = HashSet::new();
+
+    // Explicit dependencies in metadata
+    deps.extend(config.metadata.dependencies.clone());
+
+    // Implicit: parse config values for references to other configs
+    for (key, value) in config.fields {
+        if let Value::String(s) = value {
+            // Look for patterns like "../service/db.toml" or "service:db"
+            if let Some(ref_config) = parse_config_reference(s) {
+                deps.insert(ref_config);
+            }
+        }
+    }
+
+    // Transitive: if A imports B and B imports C, then A depends on B and C
+    let mut closure = deps.clone();
+    let mut queue: Vec<_> = deps.iter().cloned().collect();
+    while let Some(dep) = queue.pop() {
+        for transitive_dep in discover_dependencies(&load_config(dep)) {
+            if !closure.contains(&transitive_dep) {
+                closure.insert(transitive_dep);
+                queue.push(transitive_dep);
+            }
+        }
+    }
+
+    closure
+}
+\end{lstlisting}
+
+This learns the graph incrementally as it processes each configuration.
+
+\section{Implementation Challenges}
+
+\subsection{Challenge 1: Deadlock in Circular Dependencies}
+
+\subsubsection{The Problem}
+
+Some fleets have circular dependencies. For example:
+
+\begin{lstlisting}[caption={Circular dependency in fleet}]
+# service/frontend.toml
+api_url = "${API_URL}"  # defaults to service/api.toml
+
+# service/api.toml
+frontend_url = "${FRONTEND_URL}"  # defaults to service/frontend.toml
+\end{lstlisting}
+
+Frontend imports API; API imports Frontend. The topological sort requires processing Frontend before API (to satisfy the default), but API before Frontend (to satisfy the other default). The sort has no solution.
+
+\subsubsection{The Solution}
+
+Detect cycles and require the operator to break them explicitly:
+
+\begin{lstlisting}[caption={Cycle detection and resolution}]
+fn detect_cycles(graph: &DepGraph) -> Vec<Vec<ConfigId>> {
+    let mut cycles = vec![];
+    // Standard DFS-based cycle detection
+    for node in graph.nodes {
+        if let Some(cycle) = find_cycle_from(node, graph, &mut HashSet::new()) {
+            cycles.push(cycle);
+        }
+    }
+    cycles
+}
+
+fn retrofit_with_cycles(fleet: &Fleet) -> Result<Vec<ConfigId>> {
+    let cycles = detect_cycles(&fleet.dep_graph);
+    if !cycles.is_empty() {
+        // Require user to break cycles
+        eprintln!("Circular dependencies detected:");
+        for (i, cycle) in cycles.iter().enumerate() {
+            eprintln!("  Cycle {}: {}", i, cycle.iter().map(|c| c.name).join(" -> "));
+            eprintln!("    Break by removing one of these edges:");
+            for (j, config) in cycle.iter().enumerate() {
+                let next = cycle[(j+1) % cycle.len()];
+                eprintln!("      {} -> {}", config.name, next.name);
+            }
+        }
+        return Err("Resolve circular dependencies before retrofit".into());
+    }
+
+    Ok(topological_sort(&fleet.dep_graph))
+}
+\end{lstlisting}
+
+This is operationally hard but semantically correct: a cycle means the system is over-specified. Breaking the cycle forces the operator to make an explicit choice about which configuration is more fundamental.
+
+\subsubsection{Remaining Hard Problem}
+
+Some enterprises have intentional cycles (e.g., frontend and backend are developed in lockstep and always deployed together). For these, \texttt{cargo-cicd} v26.6.31 will support ``atomic retrofit groups'': a set of configurations that are retrofitted and deployed as a unit, bypassing the topological sort for internal edges.
+
+\subsection{Challenge 2: Environment Pinning and Drift}
+
+\subsubsection{The Problem}
+
+The witness includes the environment snapshot (Definition~\ref{def:witness}). In a large fleet, environments vary:
+
+\begin{itemize}
+  \item Dev: full of debugging flags, incomplete configs
+  \item Staging: mirrors production but with test credentials
+  \item Production: locked down, minimal
+  \item Canary: production config but with feature flags
+\end{itemize}
+
+A configuration retrofitted in staging with environment $e_{\mathrm{stg}}$ produces witness $w_{\mathrm{stg}}$. But production has environment $e_{\mathrm{prod}} \neq e_{\mathrm{stg}}$, so the witness will be different ($w_{\mathrm{prod}} \neq w_{\mathrm{stg}}$).
+
+Should production re-compute the witness in its own environment, or should it validate against the staging witness?
+
+If it re-computes, the witness changes, and the audit trail is broken: the receipt says witness $w_{\mathrm{stg}}$, but production shows $w_{\mathrm{prod}}$.
+
+If it validates against the staging witness, production is constrained to use the staging environment, which may be wrong.
+
+\subsubsection{The Solution}
+
+\texttt{cargo-cicd} bifurcates the witness:
+
+\begin{equation}
+\omega_{\mathrm{content}} = \mathrm{BLAKE3}(\text{source files and layer ordering})
+\end{equation}
+
+\begin{equation}
+\omega_{\mathrm{full}} = \mathrm{BLAKE3}(\omega_{\mathrm{content}} \| \mathrm{env snapshot})
+\end{equation}
+
+The content witness is environment-agnostic; the full witness is environment-specific. The receipt includes both.
+
+When production admits the same configuration:
+
+\begin{lstlisting}[caption={Environment-aware witness validation}]
+fn validate_receipt(config: &Config, receipt: &Receipt, prod_env: &Env) -> Result<()> {
+    let content_witness = compute_content_witness(config)?;
+
+    // Content must match, regardless of environment
+    if content_witness != receipt.content_witness {
+        return Err("Configuration content mismatch".into());
+    }
+
+    // Environment can differ, but it must be documented
+    let prod_full_witness = compute_full_witness(config, prod_env)?;
+    if prod_full_witness != receipt.full_witness {
+        // Environment is different, which is expected
+        eprintln!("Note: environment differs from staging");
+        eprintln!("  Staging witness: {}", receipt.full_witness);
+        eprintln!("  Production witness: {}", prod_full_witness);
+        eprintln!("  Content witness (both): {}", content_witness);
+    }
+
+    Ok(())
+}
+\end{lstlisting}
+
+This decouples content integrity (the configuration itself) from environment (which varies by target). The operator can see that the configuration is the same, even if the environment differs.
+
+\subsubsection{Remaining Hard Problem}
+
+If the content witness is the same, but the environment substitution produces different values, which environment is ``correct''? A configuration might be valid in staging (with test credentials) but invalid in production (with real credentials of different format). The current solution is manual review: the operator must inspect the environment-aware diffs before promoting from staging to production.
+
+\subsection{Challenge 3: Retroactive Retrofit and Remediation}
+
+\subsubsection{The Problem}
+
+Some configurations were deployed long ago, before the BRCE existed. They may have been modified manually, out of version control. Some may have been tampered with. The question is: how can we retrofit a configuration that we cannot trust?
+
+For example, a production database configuration might be 3 years old, hand-edited, and not in git. We want to retrofit it to be admitted, but we cannot be sure of its provenance.
+
+\subsubsection{The Solution}
+
+\texttt{cargo-cicd} provides a remediation flow:
+
+\begin{enumerate}
+  \item \textbf{Capture}: Load the current configuration from production. Compute its content digest (without witness, since it was never admitted).
+  \item \textbf{Canonicalize}: Reformat it to canonical form, without changing semantics.
+  \item \textbf{Audit}: A human auditor reviews the canonical form and approves it as ``as-is correct.''
+  \item \textbf{Retrofit}: Admit it with an explicit ``remediation'' tag in the receipt, noting the date and auditor.
+  \item \textbf{Monitor}: Run the configuration for 7 days with enhanced monitoring. If it misbehaves, the remediation tag alerts operators to review.
+\end{enumerate}
+
+\begin{lstlisting}[caption={Remediation flow for untrusted configs}]
+pub enum ReceiptTag {
+    Normal { witness: Witness },
+    Remediated { captured_date: DateTime, auditor: String, notes: String },
+    Reverted { prior_witness: Witness, reason: String },
+}
+
+impl Receipt {
+    pub fn is_remediated(&self) -> bool {
+        matches!(self.tag, ReceiptTag::Remediated { .. })
+    }
+
+    pub fn is_trustworthy(&self) -> bool {
+        match &self.tag {
+            ReceiptTag::Normal { .. } => true,
+            ReceiptTag::Remediated { .. } => false,  // Flag for extra scrutiny
+            ReceiptTag::Reverted { .. } => false,
+        }
+    }
+}
+\end{lstlisting}
+
+The operator knows which configurations are remediated and can apply extra scrutiny.
+
+\section{Comparison: Retrofit Strategies}
+
+\begin{longtable}{@{}p{2.5cm}p{2.8cm}p{2.8cm}p{2.8cm}@{}}
+\caption{Comparison of fleet retrofit strategies: Topological Sort vs.\ Priority Scoring vs.\ User-Driven.}
+\label{tab:retrofit-comparison} \\
+\toprule
+\textbf{Dimension} & \textbf{Topological Sort} & \textbf{Priority Scoring} & \textbf{User-Driven} \\
+\midrule
+\endfirsthead
+\toprule \textbf{Dimension} & \textbf{Topological Sort} & \textbf{Priority Scoring} & \textbf{User-Driven} \\
+\midrule
+\endhead
+\textbf{Guarantee} & Dependencies respected & No guarantee & No guarantee \\
+\textbf{Early progress} & Slow (long dependency chains) & Fast (high-impact first) & Medium (operator-paced) \\
+\textbf{Scalability} & $O(|V| + |E|)$ & $O(|V| \log |V|)$ & Manual; $O(n \cdot h)$ where $h$ is human time \\
+\textbf{Rework} & None & Possible & Unlikely \\
+\textbf{Debugging} & Deterministic; easy to replay & Heuristic; hard to debug & Tactical; depends on operator \\
+\textbf{Risk} & Medium (correctness-based) & High (violates constraints if priorities wrong) & Medium (operator oversight) \\
+\textbf{Automation} & Fully automatable & Automatable with human gates & Requires agent or operator \\
+\textbf{Fleet size} & Good for 1K–100K configs & Good for 100–10K configs & Good for 10–500 configs \\
+\bottomrule
+\end{longtable}
+
+\section{Lessons Learned}
+
+\subsection{Lesson 1: Dependencies Are Often Invisible}
+
+The first retrofit effort assumed the dependency graph was accurate. It was not. Services imported from other services via environment variables, dynamic includes, and plugin systems. These dependencies were not declared in metadata.
+
+The lesson: invest in graph learning before assuming the topology. Spend 10\% of retrofit time discovering the real dependency graph, rather than 80\% fixing retrofit failures due to wrong assumptions.
+
+\subsection{Lesson 2: Environment Pinning Is Operationally Expensive}
+
+Early attempts to retrofit large fleets by pinning environments to the staging environment created operational friction. Operators had to understand why production behaved differently from staging, even though the configuration was the same.
+
+The lesson: bifurcate the witness into content and environment components. Let operators see that content is consistent, even if environments differ. This transparency reduces surprise.
+
+\subsection{Lesson 3: Circular Dependencies Are Red Flags}
+
+When the retrofit encountered circular dependencies, rather than trying to resolve them automatically, \texttt{cargo-cicd} asks the operator to break them. This seems like a setback, but it forces operators to clarify their architecture: which configuration is truly fundamental? Which is derived?
+
+In practice, discovering and breaking cycles led to cleaner service architectures: services that were tightly coupled became decoupled, reducing operational complexity.
+
+The lesson: constraints imposed by the tooling (topological sort) are often constraints the system should have had anyway. When the retrofit tool refuses to proceed, listen to it. It is telling you something about your architecture.
+
+\subsection{Lesson 4: Witness Determinism Requires Discipline}
+
+A few teams tried to retrofit with different environment variables across dev/staging/production, expecting the witness to be ``somehow the same.'' It was not. This led to confusion: was the production deployment of the same configuration, or a different one?
+
+The lesson: witness equality is the only reliable indicator of configuration identity. Treat it like a cryptographic commitment. Do not try to be clever with partial witnesses or environment-agnostic hashes. The bifurcated witness (content + full) is the right approach: it is transparent, auditable, and leaves no ambiguity.

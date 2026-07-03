@@ -1,0 +1,218 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+
+\title{Formal Specification: The Admission Model}
+\author{}
+\date{}
+
+\begin{document}
+
+\section*{\S 2. The Admission Model: Formal Specification}
+
+\subsection{Introduction}
+
+The \textit{admission model} is a typestate-driven framework that governs the lifecycle of configurations from raw, unvalidated sources to cryptographically-witnessed, immutable final states. This specification formalizes the state transitions, the admission operator, witness generation, and domain-scoping guarantees that ensure admissibility is deterministic, cryptographically verifiable, and domain-specific.
+
+\subsection{Typed State Machine}
+
+\subsubsection{State Definition}
+
+The admission lifecycle is governed by a finite set of states forming a directed acyclic graph (DAG):
+
+\begin{equation}
+\text{State} \in \{\text{Raw}, \text{Merged}, \text{Deserialized}_\langle T \rangle, \text{Validated}_\langle T \rangle, \text{Frozen}_\langle T \rangle, \text{Admitted}_\langle T \rangle\}
+\end{equation}
+
+Each state carries an implicit type tag $T$, and terminal states carry witness material. Formally:
+
+\begin{align}
+\text{Raw} &: \text{multiset of untyped, unmerged sources} \\
+\text{Merged} &: \text{flattened configuration byte sequence} \\
+\text{Deserialized}_\langle T \rangle &: \text{strongly-typed configuration object} \\
+\text{Validated}_\langle T \rangle &: \text{configuration with constraint satisfaction proof} \\
+\text{Frozen}_\langle T \rangle &: \text{validated, immutable configuration} \\
+\text{Admitted}_\langle T \rangle &: \text{frozen configuration with BLAKE3 witness}
+\end{align}
+
+\subsubsection{Transition Rules}
+
+Transitions between states are deterministic and irreversible. Define the transition relation $\xrightarrow[\text{op}]{}$ where $\text{op}$ denotes the operation triggering the transition:
+
+\begin{align}
+\text{Raw} &\xrightarrow[\text{merge}]{} \text{Merged} \quad \text{(consolidate sources via canonical ordering)} \\
+\text{Merged} &\xrightarrow[\text{deser}]{T} \text{Deserialized}_\langle T \rangle \quad \text{(parse TOML/JSON/Bincode to type } T \text{)} \\
+\text{Deserialized}_\langle T \rangle &\xrightarrow[\text{validate}]{} \text{Validated}_\langle T \rangle \quad \text{(discharge all schema, domain, and business constraints)} \\
+\text{Validated}_\langle T \rangle &\xrightarrow[\text{freeze}]{} \text{Frozen}_\langle T \rangle \quad \text{(mark immutable, disable mutation)} \\
+\text{Frozen}_\langle T \rangle &\xrightarrow[\text{witness}]{W} \text{Admitted}_\langle T \rangle \quad \text{(compute and bind BLAKE3 witness)}
+\end{align}
+
+\noindent \textbf{Invariants:}
+\begin{itemize}
+  \item No backward transitions: $\text{State}_i \not\xrightarrow{} \text{State}_j$ for $i > j$ in topological order.
+  \item Merging is idempotent: $\text{merge}(\text{merge}(S)) = \text{merge}(S)$.
+  \item Validation is deterministic: $\text{validate}(c, v) = \text{validate}(c, v')$ if $v \equiv v'$.
+\end{itemize}
+
+\subsection{The Admission Operator}
+
+\subsubsection{Definition}
+
+The admission operator $\mathcal{A}$ takes a triple of inputs and returns either an admitted configuration or a bottom symbol (error):
+
+\begin{equation}
+\mathcal{A}^\text{admit}(\text{config}, \text{validator}, \text{witness}) \to \text{AdmittedConfig}_\langle T \rangle \cup \{\bot\}
+\end{equation}
+
+\noindent where:
+\begin{itemize}
+  \item $\text{config} \in \text{Frozen}_\langle T \rangle$ — a frozen, type-aware configuration object.
+  \item $\text{validator} : \text{Deserialized}_\langle T \rangle \to \{\text{true}, \text{false}\}$ — a decidable constraint predicate.
+  \item $\text{witness} : \text{Frozen}_\langle T \rangle \times \text{Domain} \to \mathbb{B}^{256}$ — the witness function (defined below).
+\end{itemize}
+
+\subsubsection{Semantics}
+
+The operator's behavior is defined as:
+
+\begin{equation}
+\mathcal{A}^\text{admit}(c, v, w) \triangleq
+\begin{cases}
+\langle c_{\text{frozen}}, w(c, \delta), \top \rangle & \text{if } v(c) = \text{true} \\
+\bot & \text{otherwise}
+\end{cases}
+\end{equation}
+
+\noindent where $\delta$ is the current domain context and $c_{\text{frozen}}$ is the frozen form of $c$ (i.e., mutation is disabled and deep copy protections are activated).
+
+\textbf{Return type:} \texttt{AdmittedConfig<T>} is a record containing:
+\begin{itemize}
+  \item \texttt{payload}: the admitted configuration of type $T$.
+  \item \texttt{witness}: a 256-bit BLAKE3 hash binding the configuration to its sources and domain.
+  \item \texttt{finalized}: a proof token (type-level, \texttt{true} iff the witness is valid).
+\end{itemize}
+
+\noindent If validation fails, $\mathcal{A}^\text{admit}$ returns $\bot$, and no partially-admitted state is created. This ensures all-or-nothing semantics.
+
+\subsection{BLAKE3 Witness Function}
+
+\subsubsection{Definition}
+
+The witness function cryptographically commits the configuration, its derivation, and its domain to a 256-bit value:
+
+\begin{equation}
+W(\text{sources}, \text{layers}, \text{env}, \text{fitness}, \text{canonical})
+= \text{BLAKE3}\left(H(\text{sources}) \mathbin{\|} H(\text{layers}) \mathbin{\|} H(\text{env}) \mathbin{\|} H(\text{fitness}) \mathbin{\|} H(\text{canonical})\right)
+\end{equation}
+
+\noindent where $H : \mathbb{B}^* \to \mathbb{B}^{256}$ denotes a BLAKE3 hash, $\mathbin{\|}$ denotes byte-string concatenation, and:
+
+\begin{align}
+H(\text{sources}) &: \text{BLAKE3 of the serialized, canonicalized input sources (lexicographically ordered)} \\
+H(\text{layers}) &: \text{BLAKE3 of each parsing/deserial layer (format + schema version)} \\
+H(\text{env}) &: \text{BLAKE3 of environment variables explicitly referenced in constraints} \\
+H(\text{fitness}) &: \text{BLAKE3 of constraint validation results (bitmask)} \\
+H(\text{canonical}) &: \text{BLAKE3 of the serialized final configuration in canonical form}
+\end{align}
+
+\subsubsection{Ordering Invariants}
+
+To ensure deterministic witnesses, the function enforces strict ordering:
+
+\begin{enumerate}
+  \item \textbf{Lexicographic source ordering:} If sources $S = \{s_1, s_2, \ldots, s_n\}$, then $H(\text{sources})$ is computed from $\text{sort}(S)$ where $\text{sort}$ is lexicographic on serialized bytes.
+
+  \item \textbf{Layer sequence invariant:} Let $L = (\ell_1, \ell_2, \ldots, \ell_k)$ be the sequence of deserialization layers (Raw $\to$ Merged $\to$ Deserialized $\to$ Validated $\to$ Frozen). Then $H(\text{layers}) = \text{BLAKE3}(\text{encode}(\ell_1) \mathbin{\|} \text{encode}(\ell_2) \mathbin{\|} \cdots \mathbin{\|} \text{encode}(\ell_k))$.
+
+  \item \textbf{Environment capture:} If a validator $v$ references environment variables $E = \{e_1, \ldots, e_m\}$, then $H(\text{env})$ incorporates the values of $E$ at the time of validation in sorted order.
+
+  \item \textbf{Fitness bitmask:} For each constraint $\phi \in \Phi$ (the constraint set), compute $\text{satisfied}(\phi) \in \{0, 1\}$. Then $H(\text{fitness}) = \text{BLAKE3}(\text{bitmask}(\text{satisfied}(\phi_1), \ldots, \text{satisfied}(\phi_|\Phi|)))$.
+\end{enumerate}
+
+\subsubsection{Witness Determinism}
+
+\begin{lemma}[Witness Determinism]
+For fixed sources, layers, environment values, and constraints, the witness is deterministic:
+\begin{equation}
+\forall c_1, c_2 \in \text{Frozen}_\langle T \rangle : \text{sources}(c_1) = \text{sources}(c_2) \land \text{constraints}(c_1) = \text{constraints}(c_2) \implies W(c_1) = W(c_2)
+\end{equation}
+\end{lemma}
+
+\noindent This ensures that the same logical configuration always produces the same witness, enabling reproducible builds and verification.
+
+\subsection{Typestate Invariant}
+
+\subsubsection{Formal Statement}
+
+Let $\text{AdmittedConfig}_\langle T \rangle$ denote the set of successfully admitted configurations of type $T$. The typestate invariant asserts that every admitted configuration is final and witnessed:
+
+\begin{equation}
+\forall t \in \text{AdmittedConfig}_\langle T \rangle : t.\text{finalized} = \top \land t.\text{witness} \neq \bot
+\end{equation}
+
+\noindent Equivalently, in sequent notation:
+\begin{equation}
+t \in \text{AdmittedConfig}_\langle T \rangle \vdash t.\text{finalized} = \top \quad \text{and} \quad t.\text{witness} \in \mathbb{B}^{256}
+\end{equation}
+
+\subsubsection{Mutation Prevention}
+
+The typestate invariant is enforced at the type level through Rust's move semantics and immutability:
+
+\begin{itemize}
+  \item The type \texttt{Admitted<T>} transitions to move semantics only; all fields are immutable by default.
+  \item Any attempt to mutate \texttt{t.payload}, \texttt{t.witness}, or \texttt{t.finalized} after admission results in a compile-time type error.
+  \item The witness is computed as a pure function and is stored as an immutable byte array \texttt{[u8; 32]}.
+\end{itemize}
+
+\noindent Thus, the invariant holds inductively: once a configuration reaches $\text{Admitted}_\langle T \rangle$, it cannot be mutated, deserialized again, or re-validated.
+
+\subsection{Domain Scoping Theorem}
+
+\subsubsection{Statement}
+
+Witnesses are domain-specific: the witness for a configuration in one domain differs from the witness for the same configuration in another domain, under different genesis seeds.
+
+\begin{theorem}[Domain Scoping]
+Let $\text{config}_A$ be a configuration, $\delta_X$ and $\delta_Y$ be two distinct domain contexts with different genesis seeds $g_X$ and $g_Y$ (i.e., $g_X \neq g_Y$). Then:
+
+\begin{equation}
+g_X \neq g_Y \implies W(\text{config}_A, \delta_X) \neq W(\text{config}_A, \delta_Y)
+\end{equation}
+
+\noindent In other words, the same configuration admitted in domain $X$ cannot be confused with an admission in domain $Y$.
+\end{theorem}
+
+\subsubsection{Proof Sketch}
+
+The witness function includes the genesis seed as part of $H(\text{env})$ or via a domain-specific prefix in the concatenation. Suppose the witness is computed as:
+
+\begin{equation}
+W(c, \delta) = \text{BLAKE3}(H(g_\delta) \mathbin{\|} H(\text{sources}(c)) \mathbin{\|} \cdots)
+\end{equation}
+
+\noindent where $g_\delta$ is the genesis seed of domain $\delta$. Since BLAKE3 is a cryptographic hash (collision-resistant and avalanche-effect), any change to $g_\delta$ causes the witness to change with overwhelming probability:
+
+\begin{equation}
+g_X \neq g_Y \implies \text{BLAKE3}(H(g_X) \mathbin{\|} \cdots) \neq \text{BLAKE3}(H(g_Y) \mathbin{\|} \cdots) \quad \text{(except with negligible probability)}
+\end{equation}
+
+\noindent Therefore, cross-domain witness collision is cryptographically infeasible.
+
+\subsubsection{Implications for Zero-Knowledge Proofs}
+
+This theorem ensures that:
+\begin{enumerate}
+  \item An honest prover in domain $X$ cannot fraudulently claim an admission from domain $Y$ by reusing a witness.
+  \item Domain migrations require re-admission with a new genesis seed, leaving an audit trail.
+  \item Multi-domain configurations must be separately admitted in each domain, or use a multi-domain witness incorporating all relevant genesis seeds.
+\end{enumerate}
+
+\section*{Summary}
+
+The admission model provides a formal, cryptographically-grounded framework for configuration lifecycle management. The typed state machine ensures orderly progression; the admission operator enforces all-or-nothing validation; the BLAKE3 witness function provides reproducible, domain-aware commitment; the typestate invariant guarantees finality and immutability; and the domain scoping theorem prevents cross-domain collisions. Together, these components form a sound foundation for provably-secure configuration management in distributed systems.
+
+\end{document}
