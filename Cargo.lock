@@ -2674,7 +2674,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "star-toml"
-version = "26.6.30"
+version = "26.7.3"
 dependencies = [
  "blake3",
  "serde",
