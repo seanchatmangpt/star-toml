@@ -410,9 +410,12 @@
 pub mod error;
 pub mod events;
 pub mod expand;
+pub mod integrations;
 pub mod loader;
 pub mod merge;
+pub mod nouns;
 pub mod ocel;
+pub mod ocel_validation;
 pub mod path;
 pub mod reports;
 pub mod schema;
@@ -436,6 +439,9 @@ pub use reports::{
     SourceEntry, SourceKind, SourceReport,
 };
 pub use schema::{FieldBuilder, Schema};
+pub use integrations::{Wasm4pmError, Wasm4pmResult, Wasm4pmShell, Wpm4Command, WpmVerdict};
+pub use nouns::{EvidenceGate, GateReport, OracleGateVerdict, OracleVerdict, VerdictSummary};
+pub use ocel_validation::validate_ocel_schema;
 pub use star_toml_derive::Validate;
 pub use validation::{
     ErrorKind, Loc, LocSegment, Severity, Validate, ValidationError, ValidationErrors, Validator,
