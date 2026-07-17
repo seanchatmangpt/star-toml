@@ -2378,6 +2378,7 @@ version = "26.6.28"
 dependencies = [
  "blake3",
  "serde",
+ "serde_json",
  "star-toml-derive",
  "tempfile",
  "thiserror 2.0.18",
