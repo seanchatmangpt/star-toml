@@ -414,6 +414,7 @@ pub mod loader;
 pub mod merge;
 pub mod ocel;
 pub mod path;
+pub mod receipt_generation;
 pub mod reports;
 pub mod schema;
 pub mod validation;
@@ -429,6 +430,7 @@ pub use loader::{
     detect_unknown_fields,
 };
 pub use path::{resolve_and_validate, PathPolicy, PathWitness};
+pub use receipt_generation::{generate_receipt, validate_receipt, ReceiptJson};
 pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
 pub use ocel::export_events_to_ocel;
 pub use reports::{
