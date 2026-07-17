@@ -45,7 +45,12 @@ name = "verifier_report"
 path = "src/bin/verifier_report.rs"
 
 [features]
+default = []
 e2e_tests = []
+affidavit-shell = []
+# affidavit-shell: DEPRECATED in 26.6.30
+# Use receipt_generation::generate_receipt for in-process BLAKE3 receipt generation
+# instead of relying on external shell utilities.
 
 [profile.release]
 lto = true

@@ -410,10 +410,13 @@
 pub mod error;
 pub mod events;
 pub mod expand;
+pub mod integrations;
 pub mod loader;
 pub mod merge;
+pub mod nouns;
 pub mod ocel;
 pub mod path;
+pub mod receipt_generation;
 pub mod reports;
 pub mod schema;
 pub mod validation;
@@ -421,6 +424,7 @@ pub mod validation;
 pub use error::{Error, Result};
 pub use events::{AdmissionEvent, ConfigEventKind};
 pub use expand::expand_env_vars;
+pub use integrations::ShellAffidavitResult;
 pub use loader::{
     find_and_load, find_config_file, from_str, load_file, save_file, save_pretty, to_string,
     AdmittedConfig, BoundedSources, Config, ConfigDigest, ConfigFile, ConfigLifecycle,
@@ -428,9 +432,11 @@ pub use loader::{
     Loader, Merged, Raw, TrustedConfig, TrustedLoader, Validated, ValidationReport,
     detect_unknown_fields,
 };
+pub use nouns::EvidenceGate;
 pub use path::{resolve_and_validate, PathPolicy, PathWitness};
 pub use merge::{deep_merge, deep_merge_traced, WinnerMap};
 pub use ocel::export_events_to_ocel;
+pub use receipt_generation::{generate_receipt, validate_receipt};
 pub use reports::{
     blake3_hex, CoercedType, EnvOverrideEntry, EnvOverrideReport, LayerEntry, LayerReport,
     SourceEntry, SourceKind, SourceReport,
