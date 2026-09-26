@@ -1,0 +1,19 @@
+motto = '''
+say "hi"	then\leave
+— ünïcødé ✓ 🦀'''
+name = "svc"
+port = 8443
+tags = ["a", "b c", 'd"e']
+
+[db]
+pool = 16
+ratio = 0.75
+url = "postgres://u@h:5432/db?sslmode=require"
+
+[[workers]]
+name = "alpha"
+threads = 4
+
+[[workers]]
+name = "beta"
+threads = 8

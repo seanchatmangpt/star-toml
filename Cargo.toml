@@ -44,6 +44,10 @@ expect_used = "warn"
 name = "verifier_report"
 path = "src/bin/verifier_report.rs"
 
+[[bench]]
+name = "admission"
+harness = false
+
 [features]
 e2e_tests = []
 
