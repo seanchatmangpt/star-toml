@@ -1,0 +1,68 @@
+{
+  "subject": {
+    "repo": "seanchatmangpt/star-toml",
+    "pr": 12,
+    "head": "3f47c70adbef106d046b4d85d7a66a3a129b8bf9",
+    "base_main": "08f36b0a39fd1a6087b7442816bdd49bf85584a7"
+  },
+  "command": "cargo bench --bench admission (release profile, 3 runs each, median ns/op per run)",
+  "host": "operator macOS arm64, toolchain nightly-2026-04-15 (rust-toolchain.toml)",
+  "date": "2026-09-26",
+  "runs": {
+    "base_main_08f36b0": {
+      "trusted_load_small": [
+        25000,
+        25291,
+        22834
+      ],
+      "trusted_load_1000_tables": [
+        4864875,
+        4821000,
+        4819375
+      ],
+      "save_canonical_1000_tables": [
+        2588250,
+        2330750,
+        2624083
+      ]
+    },
+    "pr12_head_3f47c70": {
+      "trusted_load_small": [
+        28375,
+        27875,
+        25958
+      ],
+      "trusted_load_1000_tables": [
+        4834041,
+        4425458,
+        4851500
+      ],
+      "save_canonical_1000_tables": [
+        3255250,
+        3817583,
+        3081875
+      ]
+    },
+    "pr12_head_3f47c70_rerun_after_bounds": {
+      "trusted_load_small": [
+        24208
+      ],
+      "trusted_load_1000_tables": [
+        4366250
+      ],
+      "save_canonical_1000_tables": [
+        2513250
+      ]
+    }
+  },
+  "regression_bounds_ns": {
+    "trusted_load_small": 300000,
+    "trusted_load_1000_tables": 50000000,
+    "save_canonical_1000_tables": 40000000
+  },
+  "observations": [
+    "trusted_load: no material change across the bump (within run-to-run noise).",
+    "save_canonical_1000_tables: first head run set 3.08-3.82ms vs base 2.33-2.62ms, but a later head run measured 2.51ms; a regression is NOT established beyond run-to-run noise. All within bound."
+  ],
+  "conservation": "tests/dependency_bump_conservation.rs pins ConfigDigest 0x9e3781264cffd5b0 and canonical bytes computed on base main; both hold on head (bump conserves replay identity)."
+}
